@@ -45,6 +45,7 @@ held unless vetoed; `W` decisions for the owner; `C` the consumer's comments. Ro
 | C4 | The Dockerfile's comments say what holds (§3) | agreed | 04 |
 | C5 | A fault while rendering makes the call report failure (§5.6) | agreed | 05 |
 | C6 | A test pins the order of the analysis stats (§11) | agreed | 05 |
+| Z12 | The release's archive job first checks, without a credential, that the package is public (§10) | open | 06 |
 
 ## 3. The base and the build
 
@@ -332,8 +333,10 @@ On every `v*` tag, in the shape of vt-proxy `v0.4.0`, `runs-on: ubuntu-24.04` (Z
   `ghcr.io/janwychowaniak/iris-web-2x:<version>` only, no `latest`. The step summary records
   the registry digest, the image Id read from the pushed manifest's configuration digest,
   the Python version and the base digest.
-- **archive** (`contents: write`, the only job that writes): pulls the published image by
-  digest, tags it `ghcr.io/janwychowaniak/iris-web-2x:<version>`, runs `archive-image.sh`
+- **archive** (`contents: write`, the only job that writes): first reads the published
+  manifest without a credential, as a consumer pulls (W1, Z12): a package GHCR created
+  private turns the job red until the owner makes it public, and a re-run then goes on.
+  It pulls the published image by digest, tags it `ghcr.io/janwychowaniak/iris-web-2x:<version>`, runs `archive-image.sh`
   against the recorded Id, producing `iris-web-2x-<version>.tar.gz` and `.sha256`, proves
   the archive loads as the same Id into a store without the image, creates or updates the
   GitHub Release from the annotated tag's message with both files, and checks that the

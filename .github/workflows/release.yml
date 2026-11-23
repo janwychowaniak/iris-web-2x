@@ -1,0 +1,147 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+# The repository default for GITHUB_TOKEN is read-only; each job elevates exactly what it
+# needs: publish the package, archive the release.
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+      image-id: ${{ steps.push.outputs.image-id }}
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # Before anything is built or pushed, so a failed gate burns no version. The checkout
+      # leaves only a lightweight copy of the tag, so the tag is fetched as pushed: an
+      # annotated tag carries the release notes, a lightweight one does not.
+      - name: The tag must be annotated and match VERSION
+        run: |
+          git fetch --no-tags --depth=1 --force origin \
+            "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          test "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME")" = tag || {
+            echo "::error::$GITHUB_REF_NAME is a lightweight tag; a release needs an annotated tag, whose message is its notes"; exit 1; }
+          test "v$(cat VERSION)" = "$GITHUB_REF_NAME" || {
+            echo "::error::git tag $GITHUB_REF_NAME does not match VERSION $(cat VERSION)"; exit 1; }
+
+      - name: The renderer's tests and the proof of O3, on the tagged commit
+        run: |
+          scripts/test-renderer.sh
+          python3 -I scripts/check-upstream-lines.py
+
+      - name: Classic build of the tagged commit
+        run: scripts/build.sh "$IMAGE:$(cat VERSION)"
+
+      - name: The image checks of CI, before the push
+        run: |
+          python3 -I scripts/check-image.py "$IMAGE:$(cat VERSION)" --revision "$GITHUB_SHA"
+          scripts/check-iris.sh "$IMAGE:$(cat VERSION)"
+
+      # Login only after the build and the checks, so the registry credential exists for the
+      # push alone. The step summary is the first record of the digest and the image Id (the
+      # configuration digest, which survives docker save/load); CHANGELOG.md gets them by
+      # hand afterwards. The Id is read from the manifest the registry holds, not from the
+      # runner's .Id, which on the containerd image store is the manifest digest.
+      - name: Push and record
+        id: push
+        run: |
+          version=$(cat VERSION)
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "$IMAGE:$version"
+          digest=$(docker image inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$version")
+          digest=${digest#*@}
+          image_id=$(docker manifest inspect "$IMAGE@$digest" | python3 -c 'import json, sys; print(json.load(sys.stdin)["config"]["digest"])')
+          python=$(docker run --rm --entrypoint python "$IMAGE:$version" -c 'import platform; print(platform.python_version())')
+          base=$(sed -n 's/^FROM .*@//p' Dockerfile)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "image-id=$image_id" >> "$GITHUB_OUTPUT"
+          {
+            echo "### $IMAGE:$version"
+            echo "- digest: \`$digest\`"
+            echo "- image Id (configuration digest): \`$image_id\`"
+            echo "- Python: $python"
+            echo "- base: \`ghcr.io/dfir-iris/iriswebapp_app@$base\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "published $IMAGE:$version: $digest, Id $image_id, Python $python"
+
+  # The release files: the published image as an archive, for a host that cannot reach the
+  # registry, and its checksum. The only job that writes to the repository, and it runs
+  # after the push, so a failure here leaves the published image as it is: "Re-run failed
+  # jobs" repeats this job alone and reaches the same end state. A second tag is never the
+  # fix.
+  archive:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: read
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+      DIGEST: ${{ needs.publish.outputs.digest }}
+      IMAGE_ID: ${{ needs.publish.outputs.image-id }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # Without a credential, as a consumer pulls (W1). A package GHCR created private turns
+      # this job red until the owner makes it public; a re-run then goes on.
+      - name: The package is public
+        run: |
+          docker manifest inspect "$IMAGE@$DIGEST" > /dev/null || {
+            echo "::error::$IMAGE is not readable without a credential; make the package public, then re-run this job"; exit 1; }
+
+      # Pulled by digest, so the archive holds exactly what was published, under its full tag.
+      - name: Save the published image, and load it back into a store without it
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker pull "$IMAGE@$DIGEST"
+          docker tag "$IMAGE@$DIGEST" "$IMAGE:$version"
+          .github/scripts/archive-image.sh "$IMAGE" "$version" "$IMAGE_ID"
+          echo "- archive: \`$(cat "iris-web-2x-$version.tar.gz.sha256")\`" >> "$GITHUB_STEP_SUMMARY"
+
+      # The notes below are read from the tag, which the checkout left lightweight.
+      - name: Fetch the tag as pushed
+        run: |
+          git fetch --no-tags --depth=1 --force origin \
+            "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+
+      # Created from the tag message; on a re-run the files are replaced and the notes
+      # rewritten from the tag, so the job always ends in the same state.
+      - name: Create or update the release
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          files=("iris-web-2x-$version.tar.gz" "iris-web-2x-$version.tar.gz.sha256")
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            git tag --list "$GITHUB_REF_NAME" --format='%(contents)' > "$RUNNER_TEMP/notes.md"
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+            gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$GITHUB_REF_NAME" "${files[@]}" \
+              --verify-tag --notes-from-tag --title "$GITHUB_REF_NAME"
+          fi
+
+      # Checked on what was published rather than on what was sent, so a cause nobody has met
+      # yet turns the job red as well. Trailing newlines are not part of the comparison.
+      - name: The release notes are the tag message
+        run: |
+          tag_notes=$(git tag --list "$GITHUB_REF_NAME" --format='%(contents)')
+          release_notes=$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)
+          if [ -z "$tag_notes" ] || [ "$tag_notes" != "$release_notes" ]; then
+            echo "::error::the notes of release $GITHUB_REF_NAME are not its tag message"
+            diff <(printf '%s\n' "$tag_notes") <(printf '%s\n' "$release_notes") | head -20 || true
+            exit 1
+          fi
