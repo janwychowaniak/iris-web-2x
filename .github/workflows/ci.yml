@@ -1,0 +1,36 @@
+name: ci
+on:
+  push:
+  pull_request:
+permissions: { contents: read }
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: The renderer's tests, in the stock base image (SPEC §11)
+        run: scripts/test-renderer.sh -v
+      - name: The worker patches carry upstream's lines byte for byte (O3)
+        run: python3 -I scripts/check-upstream-lines.py
+
+  image:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Classic build, with the checks of SPEC §4.2, §6 and §7.1
+        run: scripts/build.sh "$IMAGE:$(cat VERSION)"
+      - name: Packages, filesystem, labels and configuration, filter copy
+        run: python3 -I scripts/check-image.py "$IMAGE:$(cat VERSION)" --revision "$GITHUB_SHA"
+      - name: Module health and start line, against the stock 2.4.29 database
+        run: scripts/check-iris.sh "$IMAGE:$(cat VERSION)"
+      # No record to compare with: the image was never pushed. The release runs it against one.
+      - name: Archive round trip
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/archive-image.sh" "$IMAGE" "$(cat "$GITHUB_WORKSPACE/VERSION")" -

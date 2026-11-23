@@ -287,9 +287,11 @@ class TheLoop(unittest.TestCase):
 
         log, writer = Log(), Writer()
         with unittest.mock.patch.object(render, "render_value", faulty):
-            ok = render.render_iocs([ioc(1, {"vt": VT_KNOWN, "abuseipdb": ABUSE_KNOWN})], writer, log)
-        self.assertTrue(ok)
-        self.assertEqual([t for _, t, _ in writer.calls], ["VT Report", "AbuseIPDB Report"])
+            ok = render.render_iocs([ioc(1, {"vt": VT_KNOWN, "abuseipdb": ABUSE_KNOWN}),
+                                     ioc(2, {"abuseipdb": ABUSE_KNOWN})], writer, log)
+        self.assertFalse(ok)  # a bug in the module shows as a failed task
+        self.assertEqual([(i, t) for i, t, _ in writer.calls],
+                         [(1, "VT Report"), (1, "AbuseIPDB Report"), (2, "AbuseIPDB Report")])
         self.assertEqual(writer.calls[0][2], render.render_unrecognised("vt"))
         self.assertEqual(log.at("error"),
                          ["IOC #1: 'vt': rendering failed (TypeError: a fault), rendered as \"?\""])
@@ -346,6 +348,13 @@ class WrongTypes(unittest.TestCase):
         self.assertIn("<tr><th>malicious</th><td>3</td></tr>", out)
         for key in ("harmless", "suspicious", "timeout", "undetected"):
             self.assertNotIn("<th>%s</th>" % key, out)
+
+    def test_stats_sorted_by_key_whatever_their_order(self):
+        unsorted = {"undetected": 60, "malicious": 3, "timeout": 0, "harmless": 30, "suspicious": 1}
+        self.assertNotEqual(list(unsorted), sorted(unsorted))
+        out, _ = render.render_value("vt", with_(VT_KNOWN, verdict__stats=unsorted))
+        rows = "".join("<tr><th>%s</th><td>%s</td></tr>" % kv for kv in sorted(unsorted.items()))
+        self.assertIn("<h4>Analysis stats</h4><table class=\"table table-sm\"><tbody>%s</tbody></table>" % rows, out)
 
     def test_stats_not_an_object(self):
         out, _ = render.render_value("vt", with_(VT_KNOWN, verdict__stats=[3],

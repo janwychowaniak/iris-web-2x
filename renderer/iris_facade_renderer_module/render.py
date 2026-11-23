@@ -179,10 +179,12 @@ def render_unrecognised(key):
 
 
 def render_iocs(iocs, write_tab, log):
-    """Render and write every service key of every IOC; True when every tab was written.
+    """Render and write every service key of every IOC. True when every tab was rendered
+    and written; a value of no v1 shape is rendered, as "?", and does not count against it.
 
     write_tab(ioc, tab, html) returns True when IRIS wrote the tab; a false return or an
-    exception is a failed tab, which is logged while the other keys and IOCs go on.
+    exception is a failed tab. A failed tab, and a fault while rendering a value, are
+    logged while the other keys and IOCs go on, and make the call report failure.
     """
     all_written = True
     for ioc in iocs:
@@ -195,8 +197,9 @@ def render_iocs(iocs, write_tab, log):
             tab = tab_name(key)
             try:
                 body, recognised = render_value(key, value)
-            except Exception as e:  # a fault in this module, not in the data: still one tab only
-                body, recognised = render_unrecognised(key), True
+            except Exception as e:  # a fault in this module, not in the data: one tab only,
+                body, recognised = render_unrecognised(key), True  # but the call fails
+                all_written = False
                 log.error('IOC #%s: %r: rendering failed (%s: %s), rendered as "?"'
                           % (ioc_id, key, type(e).__name__, e))
             if not recognised:

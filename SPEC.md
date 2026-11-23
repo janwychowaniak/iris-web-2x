@@ -41,6 +41,10 @@ held unless vetoed; `W` decisions for the owner; `C` the consumer's comments. Ro
 | W1 | The package `ghcr.io/janwychowaniak/iris-web-2x` is public and linked to this repository, as vt-proxy's is | agreed (owner) | 01 |
 | C1 | The README's contents are part of the specification (§13) | agreed | 02 |
 | C2 | Digests are written in full wherever they are compared, the tag message included (§7.2, §10) | agreed | 02 |
+| C3 | Both packages are built into wheels and installed with a `dist-info` (§3) | agreed | 04 |
+| C4 | The Dockerfile's comments say what holds (§3) | agreed | 04 |
+| C5 | A fault while rendering makes the call report failure (§5.6) | agreed | 05 |
+| C6 | A test pins the order of the analysis stats (§11) | agreed | 05 |
 
 ## 3. The base and the build
 
@@ -73,7 +77,9 @@ Dockerfile, .dockerignore, VERSION
 patches/   0001-module-handler-reset-session.patch, 0002-tasks-worker-process-init.patch,
            0003-entrypoint-version-line.patch, stock.sha256, patched.sha256
 renderer/  setup.py, iris_facade_renderer_module/, tests/ (scripts/test-renderer.sh runs them)
-scripts/   build.sh (the classic build with its build arguments), the CI and release checks
+scripts/   build.sh (the classic build with its build arguments), test-renderer.sh,
+           check-upstream-lines.py, check-image.py with inventory.py, check-iris.sh with
+           iris-health.py: the checks of §9
 .github/   workflows/{ci,release,gitleaks}.yml, scripts/archive-image.sh
 LICENSE, COPYING, NOTICE, README.md, CHANGELOG.md
 ```
@@ -218,11 +224,13 @@ Rendering details (Z6):
 - A write that returns false or raises is a failed tab: the session is rolled back, the
   log says `IOC #ID: tab 'TAB' not written: REASON`, and the other keys and IOCs are still
   written.
-- The call reports success when every tab was written, `?` tabs included, and failure
-  otherwise. An unsupported hook name is a failure, as in 0.1.1.
 - A fault while rendering one value, a bug in the module rather than in the data, stays in
   that value's tab the same way: the `?` tab is written and the log says, at error,
   `IOC #ID: 'KEY': rendering failed (TYPE: MESSAGE), rendered as "?"`.
+- The call reports success when every value was rendered and every tab written, the `?`
+  tabs of unrecognised values included; a failed tab or a fault while rendering makes it
+  report failure, so a bug in the module shows where failed tasks are looked for. An
+  unsupported hook name is a failure, as in 0.1.1.
 
 ## 6. Part C — the IrisWebHooks fork
 
@@ -300,19 +308,19 @@ On every push and pull request, `runs-on: ubuntu-24.04` (Z9), with a job timeout
 
 | Check | What |
 |---|---|
-| tests | the renderer's tests (§11) in the stock base image pinned by digest, without network |
-| upstream lines | O3, as in §4.2 |
+| tests | `scripts/test-renderer.sh`: the renderer's tests (§11) in the stock base image pinned by digest, without network |
+| upstream lines | `scripts/check-upstream-lines.py`: O3, as in §4.2 |
 | build | `DOCKER_BUILDKIT=0 docker build`, which runs the checks of §4.2, §6 and §7.1 |
-| packages | `iris_webhooks_module` `1.0.9+jw.2` and `iris_facade_renderer_module` `0.2.0`; `pip freeze --all` differs from the base's in exactly these two lines; the Debian package lists are identical (Z8) |
-| filesystem | against the base: the only differences are the two packages in `/opt/venv`, the three patched files and `/usr/share/doc/iris-web-2x/` (Z8) |
-| labels | §7.2 |
+| packages | `scripts/check-image.py`, as the next three rows: `iris_webhooks_module` `1.0.9+jw.2` and `iris_facade_renderer_module` `0.2.0`; `pip freeze --all` differs from the base's in exactly these two lines; the Debian package lists are identical (Z8) |
+| filesystem | against the base, every entry with its type, mode, owner, size and sha256 (`scripts/inventory.py`): the only differences are the two packages in `/opt/venv`, the three patched files with their modes and owners kept and their recorded sha256, and `/usr/share/doc/iris-web-2x/` with the repository's four files at mode `644`; the renderer package holds its four files, equal to the repository's, and their bytecode (Z8) |
+| labels | §7.2 and no other label; entrypoint, command, working directory, environment and user are the base's |
 | filter copy | the 2.4.29 filter configuration the tests use equals the block in the image's `/iriswebapp/app/__init__.py` |
-| module health | with the stock `iriswebapp_db:v2.4.29` image pinned by digest: a container of the built image imports IRIS (post-init against that database), then `instantiate_module_from_name` and `check_module_health` pass for both modules |
-| start line | the entrypoint run as `iriswebapp` and as `iris-worker` against that database prints §7.3 before gunicorn's or Celery's first line |
+| module health | `scripts/check-iris.sh`, as the next row, with the stock `ghcr.io/dfir-iris/iriswebapp_db:v2.4.29` pinned at `sha256:081ad194332887ca584a9240e8e9dea94129a235e8b38ff42c1938358be432f5`: a container of the built image imports IRIS, whose post-init sets that database up; IRIS catches a failed post-init and only logs it, so the registration it leaves is checked, `iris_webhooks_module` `1.0.9+jw.2` disabled and the renderer unregistered; then, in the application context, `instantiate_module_from_name` and `check_module_health` pass for both modules |
+| start line | the entrypoint run as `iriswebapp` and as `iris-worker` against that database: the log, in time order, starts with §7.3's line, then `Running <target> ...`, then the server's first line |
 | archive | `.github/scripts/archive-image.sh` round trip, without a record (Z8) |
 
 The database and IRIS secrets are generated in the job and masked, never written in the
-workflow. `.github/workflows/gitleaks.yml` scans content and commit messages separately.
+workflow; IRIS logs the administrator password, so output shown on a failure is redacted. `.github/workflows/gitleaks.yml` scans content and commit messages separately.
 
 ## 10. Release — `.github/workflows/release.yml`
 
@@ -373,7 +381,8 @@ database.
 7. The output of every row passed through the 2.4.29 filter configuration (bleach 6.1.0,
    `strip=True`) comes out unchanged: every class intact, no `style` anywhere.
 8. §5.1's names, parameters, defaults and hook name, pinned.
-9. A fault while rendering one value stays in its tab, as §5.6 says.
+9. A fault while rendering one value stays in its tab and makes the call report failure.
+10. The analysis stats table is sorted by key whatever the order of the input.
 
 ## 12. Steps (Z11)
 
