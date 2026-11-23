@@ -1,0 +1,85 @@
+title = "iris-web-2x gitleaks config"
+
+# One config feeds all four layers: .githooks/pre-commit (staged content),
+# .githooks/commit-msg (message body), .githooks/pre-push (pushed range) and
+# .github/workflows/gitleaks.yml (CI, the only layer that cannot be bypassed).
+#
+# Written for gitleaks 8.16 (Ubuntu 24.04 apt, the version CI pins): `detect` /
+# `protect` verbs, singular [allowlist]. On 8.19+ the verbs are `git` / `dir`; on
+# 8.25+ allowlists become [[allowlists]]. The rules below are version-independent.
+
+[extend]
+useDefault = true                    # keep the FULL built-in ruleset; rules below only add
+
+[allowlist]
+description = "false positives"
+paths = ['''\.gitleaks\.toml''']     # don't scan our own config (it carries rule regexes)
+# regexes = ['''...''']              # add real false positives here as they appear
+
+# --- Add-on rules: they only ADD coverage, never replace --------------------------
+# Every id is unique and jw- prefixed, so no built-in is overridden (a colliding id
+# would replace that built-in). The built-in generic-api-key is the only net for
+# prefix-less secrets, and its stopword allowlist disables it based on the secret's
+# own value (every "sk-ant-..." key contains "ant"); these rules fire regardless.
+#
+# Validate every change against a corpus of fake keys, one per file, comparing the
+# findings with and without the change: no file may lose its finding.
+
+[[rules]]
+id = "jw-anthropic-key"
+description = "Anthropic API key"
+regex = '''\bsk-ant-[A-Za-z0-9]{2,12}-[A-Za-z0-9_-]{80,120}\b'''
+keywords = ["sk-ant-"]               # loose middle segment survives api03 -> admin01 etc.
+
+[[rules]]
+id = "jw-openrouter-key"
+description = "OpenRouter API key (sk-or-v1-)"
+regex = '''sk-or-v1-[0-9a-f]{64}'''
+keywords = ["sk-or-v1-"]
+
+# --- Threat-intel keys: the services whose results the renderer shows -------------
+# Their bare shapes collide with ordinary data (64 hex = SHA-256 IOCs, UUIDs), so each
+# rule anchors on the variable name, also behind a prefix (IRIS_VT_API_KEY) and in
+# JSON ("vt_api_key": ...).
+#
+# jw-virustotal-key carries no keywords on purpose: the candidates (vt_api_key, ...)
+# contain generic-api-key's own keywords, and a keyword that swallows one of them
+# switches generic-api-key off for the file. Measured: with them, VT_API_KEY=<40 alnum>
+# (not hex, so this rule does not match) went undetected; without them it is caught.
+# A keyword-less rule is evaluated everywhere instead: costlier, never quieter.
+
+[[rules]]
+id = "jw-virustotal-key"
+description = "VirusTotal API key (64 hex, name-anchored)"
+regex = '''(?i)(?:\b|_)(?:virustotal|vt)[_-]?(?:api[_-]?)?key\b["']?\s*[:=]\s*['"]?[0-9a-f]{64}\b'''
+
+[[rules]]
+id = "jw-abuseipdb-key"
+description = "AbuseIPDB API key (80 alnum, name-anchored)"
+regex = '''(?i)(?:\b|_)abuseipdb[_-]?(?:api[_-]?)?key\b["']?\s*[:=]\s*['"]?[A-Za-z0-9]{60,100}\b'''
+keywords = ["abuseipdb"]             # the regex's own literal; measured not to shadow
+
+[[rules]]
+id = "jw-urlscan-key"
+description = "urlscan.io API key (UUID, name-anchored)"
+regex = '''(?i)(?:\b|_)urlscan(?:[_-]?io)?[_-]?(?:api[_-]?)?key\b["']?\s*[:=]\s*['"]?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b'''
+keywords = ["urlscan"]               # the regex's own literal; measured not to shadow
+
+# --- IRIS deployment secrets ------------------------------------------------------
+# No shape of their own, so the rule anchors on the environment variables IRIS 2.4.29
+# reads them from (source/app/configuration.py). It catches a value in .env files,
+# compose maps and lists, `docker run -e`, JSON and commit messages, human passwords
+# included. A *_FILE or other suffixed name, an empty or interpolated (`$...`,
+# `${{ ... }}`) value and a value under 4 characters stay silent, so CI can pass
+# generated values without an allowlist.
+#
+# No keywords, for the same reason as jw-virustotal-key: the variable names contain
+# password / secret / key / api. Measured: with them, IRIS_ADM_API_KEY_BACKUP=...,
+# POSTGRES_PASSWORD_OLD = ... and IRIS_SECRET_KEY_ROTATED=... lost the
+# generic-api-key finding the defaults give them.
+
+[[rules]]
+id = "jw-iris-secret"
+description = "IRIS deployment secret in its environment variable"
+regex = '''(?:POSTGRES_(?:ADMIN_)?PASSWORD|IRIS_SECRET_KEY|IRIS_SECURITY_PASSWORD_SALT|IRIS_ADM_PASSWORD|IRIS_ADM_API_KEY|OIDC_(?:IRIS_)?CLIENT_SECRET|LDAP_PRIVATE_KEY_PASSWORD)["']?[ \t]*[:=][ \t]*["']?([^\s"'$][^\s"']{3,})'''
+secretGroup = 1
