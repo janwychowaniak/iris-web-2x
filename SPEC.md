@@ -10,7 +10,8 @@ repository. It is temporary: after the release, what lasts moves into `README.md
 `ghcr.io/janwychowaniak/iris-web-2x:2.4.29-N` is the stock DFIR-IRIS application image
 `ghcr.io/dfir-iris/iriswebapp_app:v2.4.29` plus:
 
-- **A.** two upstream fixes for the Celery worker (§4);
+- **A.** two upstream fixes for the Celery worker (§4), and a fix of IRIS 2.4.29's attribute
+  tab buttons, which its own Bootstrap 4.6.2 cannot follow (§4.3, W2);
 - **B.** the IrisFacadeRenderer module 0.2.0, built from this repository (§5);
 - **C.** the IrisWebHooks fork `1.0.9+jw.2` in place of the stock 1.0.9 (§6);
 - **D.** its own version, in a version file, in labels and in the start log (§7).
@@ -45,7 +46,13 @@ held unless vetoed; `W` decisions for the owner; `C` the consumer's comments. Ro
 | C4 | The Dockerfile's comments say what holds (§3) | agreed | 04 |
 | C5 | A fault while rendering makes the call report failure (§5.6) | agreed | 05 |
 | C6 | A test pins the order of the analysis stats (§11) | agreed | 05 |
-| Z12 | The release's archive job first checks, without a credential, that the package is public (§10) | open | 06 |
+| Z12 | The release's archive job first checks, without a credential, that the package is public (§10) | agreed | 07 |
+| W2 | D1, the attribute tab buttons, goes into `2.4.29-1`: this amends O4 and the order's §9 by one fix of IRIS's templates, and K3's differences grow by the patched templates (§4.3) | agreed (owner) | 09 |
+| Z13 | The buttons name their pane in a `data-target` attribute selector; the panes stay as they are (§4.3) | agreed | 09 |
+| Z14 | The new-case modal's buttons too (§4.3) | agreed | 09 |
+| C7 | The README's badge table says what the renderer does: `score N` without stats, green for a score of 0 or below | agreed | 09 |
+| C8 | The README names the warning badge's colour amber | agreed | 09 |
+| C9 | The template check runs on the stock templates as its control and must fail there where a browser does (§9) | agreed | 09 |
 
 ## 3. The base and the build
 
@@ -79,7 +86,8 @@ patches/   0001-module-handler-reset-session.patch, 0002-tasks-worker-process-in
            0003-entrypoint-version-line.patch, stock.sha256, patched.sha256
 renderer/  setup.py, iris_facade_renderer_module/, tests/ (scripts/test-renderer.sh runs them)
 scripts/   build.sh (the classic build with its build arguments), test-renderer.sh,
-           check-upstream-lines.py, check-image.py with inventory.py, check-iris.sh with
+           check-upstream-lines.py, check-image.py with inventory.py and check-templates.py,
+           check-iris.sh with
            iris-health.py: the checks of §9
 .github/   workflows/{ci,release,gitleaks}.yml, scripts/archive-image.sh
 LICENSE, COPYING, NOTICE, README.md, CHANGELOG.md
@@ -94,6 +102,9 @@ LICENSE, COPYING, NOTICE, README.md, CHANGELOG.md
 | `patches/0001-module-handler-reset-session.patch` | `dfir-iris/iris-backend` `294ed4a19bf7cfe60c75f20cacdbc79d91ce6a9f`, its only change | in `app/iris_engine/module_handler/module_handler.py`, at the entry of `task_hook_wrapper`: upstream's comment, `db.session.remove()`, `db.engine.dispose()` |
 | `patches/0002-tasks-worker-process-init.patch` | `dfir-iris/iris-backend` `9098c754089d28e9ebe448fb37a9ae55403b8b7e`, its `source/app/iris_engine/tasker/tasks.py` change only | in `app/iris_engine/tasker/tasks.py`: the import of `task_prerun` becomes `worker_process_init`; the `task_prerun` handler becomes a `worker_process_init` handler calling `db.engine.dispose(close=False)` inside `app.app_context()`, with upstream's docstring and comment |
 | `patches/0003-entrypoint-version-line.patch` | this repository's own change | §7.3 |
+| `patches/0004-attribute-tab-buttons-shared-nav.patch` | this repository's own change | §4.3, in `app/templates/modals/modal_attributes_nav.html` |
+| `patches/0005-attribute-tab-buttons-case-info.patch` | this repository's own change | §4.3, in `app/blueprints/manage/templates/modal_case_info_from_case.html` |
+| `patches/0006-attribute-tab-buttons-new-case.patch` | this repository's own change | §4.3, in `app/blueprints/manage/templates/modal_add_case.html` |
 
 Each patch is written against the 2.4.29 file, so it applies without offset or fuzz. The
 lines it adds and removes are upstream's byte for byte (O3); the context lines are
@@ -116,15 +127,45 @@ During the build, from `/iriswebapp`:
    | `app/iris_engine/module_handler/module_handler.py` | `fc00eed2de2a8177361f5a9d5815988aaaa57124cfb97962afe88edfa95cb673` |
    | `app/iris_engine/tasker/tasks.py` | `32b2ca7288580ccd731c761b73d97262ab1f1a0111a8180d939fb373b44c2ee3` |
    | `iris-entrypoint.sh` | `d85ad9552eb8f96bd32dcf8d9370e1f8b1fc8b7752e560ae38ef68dd22ae93a4` |
+   | `app/templates/modals/modal_attributes_nav.html` | `c6dce5032eee691561a07e717c7263b5a7ebb8207c242468afa3a7b97c2968c3` |
+   | `app/blueprints/manage/templates/modal_case_info_from_case.html` | `64a8fac74fef1ab5ff7c99b9c3416189c65543f4def16d4eb1441e8aa8bcba72` |
+   | `app/blueprints/manage/templates/modal_add_case.html` | `ceb5932844998ea446823b9b318265ae5589a1f38aa9dd5be2999bd6efe2f721` |
 
 2. `patch -p1 --forward --fuzz=0 --no-backup-if-mismatch` for each patch, so no `*.orig`
    or `*.rej` can appear;
 3. `sha256sum -c patches/patched.sha256`, the patched values the repository records;
-4. `iris-entrypoint.sh` is still mode `755`, owner `root:root`.
+4. `iris-entrypoint.sh` is still mode `755`, owner `root:root`; the templates keep `644`.
 
 Any mismatch fails the build. CI proves O3: it fetches the two upstream commits from
 github.com and checks that the added and the removed lines of each patch equal those of
 its upstream file change.
+
+### 4.3 The attribute tab buttons (D1, W2)
+
+In IRIS 2.4.29 an attribute tab button opens nothing: it turns active, and the modal stays
+on Info.
+
+- **Cause.** The button targets `href="#{{page_uid}}{{ loop.index }}_<name>"` and the pane's
+  id is built the same way; nothing sets `page_uid`, so the id starts with a digit
+  (`1_vt_report`). Bootstrap 4.6.2, which 2.4.29 ships since upstream commit `d1b5c610`,
+  resolves the target with `document.querySelector`, which throws on `#1_vt_report`, and
+  opens nothing. Bootstrap 4.0.0 in 2.4.27 escaped the target through jQuery first.
+- **Reach.** The shared `modals/modal_attributes_nav.html`, included by the IOC, asset,
+  event, evidence, multiple-asset, task, note, customer and attribute preview modals; the
+  case information modal (`modal_case_info_from_case.html`), which builds its buttons the
+  same way; and the new-case modal (`modal_add_case.html`), whose `itab_` ids hold only
+  while the tab's name has no punctuation.
+- **Fix (Z13, Z14).** Each of these buttons gets a `data-target`, which Bootstrap 4.6.2
+  reads before `href`: an attribute selector for the pane's own id, the id written as a CSS
+  string, `\` and `"` escaped and a line break as `\a `:
+  `data-target='[id="{{ (page_uid ~ loop.index ~ '_' ~ ca.lower() | replace(' ', '_')) | replace(...) }}"]'`,
+  with `'itab_' ~` in front in the new-case modal. Nothing else in the modals changes: the
+  panes, their ids, `href`, `aria-*`, the inputs and the `data-*` attributes IRIS reads.
+- **Checked** by `scripts/check-templates.py` (§9), and once in a browser with IRIS's own
+  jQuery 3.7.1 and Bootstrap 4.6.2: with the stock templates no attribute tab of the shared
+  or the case information modal opens, and of the new-case modal only those whose name has
+  no punctuation; with the patched templates every tab opens its pane, for every name the
+  check uses.
 
 ## 5. Part B — IrisFacadeRenderer 0.2.0
 
@@ -299,7 +340,7 @@ worker; removing both lines switches back.
   `/usr/share/common-licenses/GPL-3` (sha256 `3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986`).
 - `NOTICE`: the modified IRIS files, each with its origin: `app/iris_engine/module_handler/module_handler.py`
   (iris-backend `294ed4a1`), `app/iris_engine/tasker/tasks.py` (iris-backend `9098c754`),
-  `iris-entrypoint.sh` (this repository's own change).
+  `iris-entrypoint.sh` and the three templates of §4.3 (this repository's own changes).
 - In the image: `/usr/share/doc/iris-web-2x/` holds `LICENSE`, `COPYING`, `NOTICE` and
   `VERSION`; the README names the path.
 
@@ -313,8 +354,9 @@ On every push and pull request, `runs-on: ubuntu-24.04` (Z9), with a job timeout
 | upstream lines | `scripts/check-upstream-lines.py`: O3, as in §4.2 |
 | build | `DOCKER_BUILDKIT=0 docker build`, which runs the checks of §4.2, §6 and §7.1 |
 | packages | `scripts/check-image.py`, as the next three rows: `iris_webhooks_module` `1.0.9+jw.2` and `iris_facade_renderer_module` `0.2.0`; `pip freeze --all` differs from the base's in exactly these two lines; the Debian package lists are identical (Z8) |
-| filesystem | against the base, every entry with its type, mode, owner, size and sha256 (`scripts/inventory.py`): the only differences are the two packages in `/opt/venv`, the three patched files with their modes and owners kept and their recorded sha256, and `/usr/share/doc/iris-web-2x/` with the repository's four files at mode `644`; the renderer package holds its four files, equal to the repository's, and their bytecode (Z8) |
+| filesystem | against the base, every entry with its type, mode, owner, size and sha256 (`scripts/inventory.py`): the only differences are the two packages in `/opt/venv`, the six patched files with their modes and owners kept and their recorded sha256, and `/usr/share/doc/iris-web-2x/` with the repository's four files at mode `644`; the renderer package holds its four files, equal to the repository's, and their bytecode (Z8) |
 | labels | §7.2 and no other label; entrypoint, command, working directory, environment and user are the base's |
+| templates | `scripts/check-templates.py`, from `check-image.py`: the three templates of §4.3 compiled whole and rendered with the image's own Jinja2, for tab names with spaces, a leading digit, Polish letters, a double quote, parentheses, a dot, a backslash, an apostrophe, a colon and a line break, parsed with its lxml; each button's target resolved as Bootstrap 4.6.2 does, `#` with exactly one CSS identifier or `[id="…"]` with a CSS string, and nothing else; every button must open its own pane, and the buttons must differ from the stock ones by `data-target` alone. The same check on the stock image is the control (C9): no attribute tab of the shared or the case information modal opens there, and of the new-case modal only `VT Report`, `1 leading digit` and `Zażółć gęślą jaźń` |
 | filter copy | the 2.4.29 filter configuration the tests use equals the block in the image's `/iriswebapp/app/__init__.py` |
 | module health | `scripts/check-iris.sh`, as the next row, with the stock `ghcr.io/dfir-iris/iriswebapp_db:v2.4.29` pinned at `sha256:081ad194332887ca584a9240e8e9dea94129a235e8b38ff42c1938358be432f5`: a container of the built image imports IRIS, whose post-init sets that database up; IRIS catches a failed post-init and only logs it, so the registration it leaves is checked, `iris_webhooks_module` `1.0.9+jw.2` disabled and the renderer unregistered; then, in the application context, `instantiate_module_from_name` and `check_module_health` pass for both modules |
 | start line | the entrypoint run as `iriswebapp` and as `iris-worker` against that database: the log, in time order, starts with §7.3's line, then `Running <target> ...`, then the server's first line |
@@ -359,6 +401,8 @@ DFIR-IRIS 2.4.29 (ghcr.io/dfir-iris/iriswebapp_app@sha256:d7d23026bdde5932780758
 - IrisFacadeRenderer 0.2.0 built in: state by badge classes, ENVELOPE.md v1 only,
   an unrecognised value shown as "?" without stopping the other tabs;
 - IrisWebHooks 1.0.9+jw.2 (fork) in place of 1.0.9;
+- the attribute tab buttons of IRIS's modals open their panes under its Bootstrap 4.6.2,
+  whatever the tab's name;
 - the image version in labels, in /usr/share/doc/iris-web-2x/VERSION and in the start log.
 ```
 
@@ -397,6 +441,7 @@ Each step ends with a `reply-NN.md`; the consumer verifies it and answers.
 3. `ci.yml` with every check of §9, green on GitHub.
 4. `release.yml`, `archive-image.sh`, `CHANGELOG.md`, `README.md` as in §13; then the tag
    text to the owner.
+5. After the acceptance, D1 (§4.3, W2), with C7, C8 and C9.
 
 ## 13. README
 

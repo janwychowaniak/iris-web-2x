@@ -1,0 +1,11 @@
+--- a/app/blueprints/manage/templates/modal_add_case.html
++++ b/app/blueprints/manage/templates/modal_add_case.html
+@@ -51,7 +51,7 @@
+                     <h4><ul class="nav nav-tabs nav-lines mr-4" role="tablist">
+                             {% for ca in attributes %}
+                                 <li class="nav-item submenu">
+-                                    <a class="nav-link {% if loop.index == 1 %}{{"active show"}}{% endif %}"  data-toggle="tab" href="#itab_{{ loop.index }}_{{  ca.lower() | replace(' ', '_' ) }}"
++                                    <a class="nav-link {% if loop.index == 1 %}{{"active show"}}{% endif %}"  data-toggle="tab" data-target='[id="{{ ('itab_' ~ page_uid ~ loop.index ~ '_' ~ ca.lower() | replace(' ', '_')) | replace('\\', '\\\\') | replace('"', '\\"') | replace('\n', '\\a ') }}"]' href="#itab_{{ loop.index }}_{{  ca.lower() | replace(' ', '_' ) }}"
+                                     role="tab" aria-selected="false">{{ca}}</a>
+                                 </li>
+                             {% endfor %}

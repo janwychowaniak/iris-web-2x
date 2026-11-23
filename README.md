@@ -6,6 +6,7 @@ DFIR-IRIS 2.4.29 with two upstream worker fixes backported and two modules built
 `ghcr.io/dfir-iris/iriswebapp_app:v2.4.29`, plus four things and nothing else:
 
 - two fixes for the Celery worker, taken from the IRIS 3.x backend;
+- a fix of 2.4.29's attribute tab buttons, which open nothing under its own Bootstrap;
 - the IrisFacadeRenderer module 0.2.0, built from this repository;
 - a fork of the IrisWebHooks module, `1.0.9+jw.2`, in place of the stock 1.0.9;
 - the image's own version, in labels, in a file and in the start log.
@@ -31,7 +32,7 @@ the stock image stay open on 2.4.29:
 
 ## The changes to IRIS
 
-Three files of IRIS change; each patch is in [`patches/`](patches), and the build checks
+Six files of IRIS change; each patch is in [`patches/`](patches), and the build checks
 every file's sha256 before and after patching.
 
 | File, under `/iriswebapp` | Change | Origin |
@@ -39,12 +40,21 @@ every file's sha256 before and after patching.
 | `app/iris_engine/module_handler/module_handler.py` | at the entry of `task_hook_wrapper`, `db.session.remove()` and `db.engine.dispose()` | [`dfir-iris/iris-backend` `294ed4a1`](https://github.com/dfir-iris/iris-backend/commit/294ed4a19bf7cfe60c75f20cacdbc79d91ce6a9f) |
 | `app/iris_engine/tasker/tasks.py` | the `task_prerun` handler becomes a `worker_process_init` handler that discards the inherited pool with `db.engine.dispose(close=False)` inside an application context | [`dfir-iris/iris-backend` `9098c754`](https://github.com/dfir-iris/iris-backend/commit/9098c754089d28e9ebe448fb37a9ae55403b8b7e), its change to this file only |
 | `iris-entrypoint.sh` | the start line (below) | this repository |
+| `app/templates/modals/modal_attributes_nav.html`, `app/blueprints/manage/templates/modal_case_info_from_case.html`, `app/blueprints/manage/templates/modal_add_case.html` | each attribute tab button names its pane in a `data-target` (below) | this repository |
 
 The two worker patches carry upstream's added and removed lines byte for byte, written
 against the 2.4.29 files; CI proves it. The docstring of the second describes the 3.x
 layout and stays as upstream wrote it: it refers to a gunicorn `post_fork` hook, which
 2.4.29 does not have, and to `pool_pre_ping` in `app/db.py`, which 2.4.29 sets in
 `app/__init__.py`.
+
+**The attribute tab buttons.** In stock 2.4.29, the attribute tab buttons of the IOC,
+asset, event, evidence, task, note, customer, attribute preview and case information
+modals open nothing: they target a pane whose id starts with a digit (`#1_vt_report`),
+which the Bootstrap 4.6.2 that 2.4.29 ships cannot select; the new-case modal's break the
+same way on a tab name with punctuation. Each button now names its pane in a
+`data-target` attribute selector, which holds any name; the panes and everything else in
+the modals stay as they are.
 
 ## The modules
 
@@ -58,11 +68,11 @@ trigger `Render facade reports`. It makes no outbound calls and holds no credent
 
 | Value under a key | Badge |
 |---|---|
-| known, score above 0 | red: `score N/T`, with T the sum of the analysis stats |
-| known, score 0 | green: `score N/T` |
+| known, score above 0 | red: `score N/T`, with T the sum of the analysis stats; `score N` without them |
+| known, score 0 or below | green: as above |
 | not known, no record | grey: `unknown (no record)` |
 | not known, with a record | grey: `no findings (score N)` |
-| an error body | orange: `lookup failed (CODE)` |
+| an error body | amber: `lookup failed (CODE)` |
 | anything else | grey: `?`, and a warning in the task's log |
 
 One bad value affects only its own tab. A tab IRIS fails to write, or a fault while

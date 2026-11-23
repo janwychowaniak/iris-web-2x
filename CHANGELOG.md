@@ -30,4 +30,6 @@ DFIR-IRIS 2.4.29 (ghcr.io/dfir-iris/iriswebapp_app@sha256:d7d23026bdde5932780758
 - IrisFacadeRenderer 0.2.0 built in: state by badge classes, ENVELOPE.md v1 only,
   an unrecognised value shown as "?" without stopping the other tabs;
 - IrisWebHooks 1.0.9+jw.2 (fork) in place of 1.0.9;
+- the attribute tab buttons of IRIS's modals open their panes under its Bootstrap 4.6.2,
+  whatever the tab's name;
 - the image version in labels, in /usr/share/doc/iris-web-2x/VERSION and in the start log.

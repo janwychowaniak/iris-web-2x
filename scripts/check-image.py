@@ -170,6 +170,30 @@ def check_labels_and_config(base, image, revision):
           "differ: %s" % differ)
 
 
+# The tab names whose button opens its pane on the stock templates of 2.4.29, under its
+# Bootstrap 4.6.2: only the new-case modal's ids start with a letter, and they hold only
+# while the name has no punctuation (SPEC §4.3).
+STOCK_OPENS = {"shared nav": [], "case info": [],
+               "new case": ["VT Report", "1 leading digit", "Zażółć gęślą jaźń"]}
+
+
+def check_templates(base, image):
+    script = (ROOT / "scripts/check-templates.py").read_bytes()
+    b, i = (json.loads(run_in(img, "python", "-", stdin=script)) for img in (base, image))
+
+    def opens(results):
+        return {t: [r["name"] for r in rows if r["resolves"] == r["pane"]] for t, rows in results.items()}
+
+    names = {t: [r["name"] for r in rows] for t, rows in i.items()}
+    check(opens(i) == names, "every attribute tab button opens its own pane (%d templates, %d names)"
+          % (len(names), len(next(iter(names.values())))), "opening: %s" % opens(i))
+    check(opens(b) == STOCK_OPENS, "control: on the stock templates, the same check rejects what a browser rejects",
+          "stock opening: %s" % opens(b))
+    same = all((rb["button"], rb["text"], rb["pane"]) == (ri["button"], ri["text"], ri["pane"])
+               for t in b for rb, ri in zip(b[t], i[t]))
+    check(same, "the buttons differ from the stock ones by data-target alone, the panes not at all")
+
+
 def check_filter_copy(image):
     copy = (ROOT / "renderer/tests/iris_2429_filter.py").read_text()
     block = copy[copy.index("_ATTR_HTML_ALLOWED_TAGS = ["):]
@@ -186,6 +210,7 @@ def main():
     check_packages(base, args.image)
     check_filesystem(base, args.image)
     check_labels_and_config(base, args.image, args.revision)
+    check_templates(base, args.image)
     check_filter_copy(args.image)
     print("%d check(s) failed" % len(failures) if failures else "all checks passed")
     return 1 if failures else 0
