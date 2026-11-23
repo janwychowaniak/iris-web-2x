@@ -22,23 +22,25 @@ Platform: linux/amd64.
 ## 2. Decisions
 
 IDs: `O` the owner's decisions in the order; `Z` the maintainer's assumptions,
-held unless vetoed; `W` decisions for the owner. Round 01 is the order with `reply-01`.
+held unless vetoed; `W` decisions for the owner; `C` the consumer's comments. Round 01 is the order with `reply-01`.
 
 | ID | Decision | Status | Round |
 |---|---|---|---|
 | O1–O10 | As in the order's §3: public repository and image name; thin layer over the stock image; upstream's patch text byte for byte; layered releases; LGPL-3.0-or-later; versions `v2.4.29-N` / `2.4.29-N`; the fork at tag `v1.0.9+jw.2`; no module registration by the image; the sibling's release shape; nothing public without the owner's word | agreed | 01 |
-| Z1 | Version file `VERSION`, copied into the image (§7.1) | open | 01 |
-| Z2 | The start line's text and position (§7.3) | open | 01 |
-| Z3 | Inherited base labels are overridden, `created` is the commit time (§7.2) | open | 01 |
-| Z4 | License files `LICENSE`, `COPYING`, `NOTICE`; in the image under `/usr/share/doc/iris-web-2x/` (§8) | open | 01 |
-| Z5 | What counts as an ENVELOPE.md v1 shape (§5.4) | open | 01 |
-| Z6 | Rendering details the order leaves open (§5.5) | open | 01 |
-| Z7 | A failed tab write: rollback, the call reports failure (§5.6) | open | 01 |
-| Z8 | CI also compares packages and filesystem with the base (K2, K3) and runs the archive round trip on every push (§9) | open | 01 |
-| Z9 | CI and release run on `ubuntu-24.04`, not `ubuntu-latest` (§9, §10) | open | 01 |
-| Z10 | The release runs the image checks before the push (§10) | open | 01 |
-| Z11 | Implementation in four steps (§12) | open | 01 |
+| Z1 | Version file `VERSION`, copied into the image (§7.1) | agreed | 02 |
+| Z2 | The start line's text and position (§7.3) | agreed | 02 |
+| Z3 | Inherited base labels are overridden, `created` is the commit time (§7.2) | agreed | 02 |
+| Z4 | License files `LICENSE`, `COPYING`, `NOTICE`; in the image under `/usr/share/doc/iris-web-2x/` (§8) | agreed | 02 |
+| Z5 | What counts as an ENVELOPE.md v1 shape (§5.4) | agreed | 02 |
+| Z6 | Rendering details the order leaves open (§5.5) | agreed | 02 |
+| Z7 | A failed tab write: rollback, the call reports failure (§5.6) | agreed | 02 |
+| Z8 | CI also compares packages and filesystem with the base (K2, K3) and runs the archive round trip on every push (§9) | agreed | 02 |
+| Z9 | CI and release run on `ubuntu-24.04`, not `ubuntu-latest` (§9, §10) | agreed | 02 |
+| Z10 | The release runs the image checks before the push (§10) | agreed | 02 |
+| Z11 | Implementation in four steps (§12) | agreed | 02 |
 | W1 | The package `ghcr.io/janwychowaniak/iris-web-2x` is public and linked to this repository, as vt-proxy's is | agreed (owner) | 01 |
+| C1 | The README's contents are part of the specification (§13) | agreed | 02 |
+| C2 | Digests are written in full wherever they are compared, the tag message included (§7.2, §10) | agreed | 02 |
 
 ## 3. The base and the build
 
@@ -76,9 +78,9 @@ LICENSE, COPYING, NOTICE, README.md, CHANGELOG.md
 
 | File | Upstream | Change |
 |---|---|---|
-| `patches/0001-…` | `dfir-iris/iris-backend` `294ed4a19bf7cfe60c75f20cacdbc79d91ce6a9f`, its only change | in `app/iris_engine/module_handler/module_handler.py`, at the entry of `task_hook_wrapper`: upstream's comment, `db.session.remove()`, `db.engine.dispose()` |
-| `patches/0002-…` | `dfir-iris/iris-backend` `9098c754089d28e9ebe448fb37a9ae55403b8b7e`, its `source/app/iris_engine/tasker/tasks.py` change only | in `app/iris_engine/tasker/tasks.py`: the import of `task_prerun` becomes `worker_process_init`; the `task_prerun` handler becomes a `worker_process_init` handler calling `db.engine.dispose(close=False)` inside `app.app_context()`, with upstream's docstring and comment |
-| `patches/0003-…` | this repository's own change | §7.3 |
+| `patches/0001-module-handler-reset-session.patch` | `dfir-iris/iris-backend` `294ed4a19bf7cfe60c75f20cacdbc79d91ce6a9f`, its only change | in `app/iris_engine/module_handler/module_handler.py`, at the entry of `task_hook_wrapper`: upstream's comment, `db.session.remove()`, `db.engine.dispose()` |
+| `patches/0002-tasks-worker-process-init.patch` | `dfir-iris/iris-backend` `9098c754089d28e9ebe448fb37a9ae55403b8b7e`, its `source/app/iris_engine/tasker/tasks.py` change only | in `app/iris_engine/tasker/tasks.py`: the import of `task_prerun` becomes `worker_process_init`; the `task_prerun` handler becomes a `worker_process_init` handler calling `db.engine.dispose(close=False)` inside `app.app_context()`, with upstream's docstring and comment |
+| `patches/0003-entrypoint-version-line.patch` | this repository's own change | §7.3 |
 
 Each patch is written against the 2.4.29 file, so it applies without offset or fuzz. The
 lines it adds and removes are upstream's byte for byte (O3); the context lines are
@@ -243,7 +245,7 @@ part before the last `-` equals `IRIS_VERSION` in `/iriswebapp/app/configuration
 | `org.opencontainers.image.revision` | the built commit |
 | `org.opencontainers.image.licenses` | `LGPL-3.0-or-later` |
 | `org.opencontainers.image.base.name` | `ghcr.io/dfir-iris/iriswebapp_app:v2.4.29` |
-| `org.opencontainers.image.base.digest` | the `FROM` digest, `sha256:d7d23026…05699b` |
+| `org.opencontainers.image.base.digest` | the `FROM` digest, `sha256:d7d23026bdde593278075821d3abc8649fe28d618d5784cc9875bd7a3d05699b` |
 | `org.opencontainers.image.title` | `iris-web-2x` |
 | `org.opencontainers.image.url` | `https://github.com/janwychowaniak/iris-web-2x` |
 | `org.opencontainers.image.description` | `DFIR-IRIS 2.4.29 with two upstream worker fixes and two modules built in` |
@@ -330,7 +332,7 @@ The tag message of `v2.4.29-1`, to be:
 ```
 iris-web-2x 2.4.29-1
 
-DFIR-IRIS 2.4.29 (ghcr.io/dfir-iris/iriswebapp_app@sha256:d7d23026…05699b) with:
+DFIR-IRIS 2.4.29 (ghcr.io/dfir-iris/iriswebapp_app@sha256:d7d23026bdde593278075821d3abc8649fe28d618d5784cc9875bd7a3d05699b) with:
 - the Celery worker's pool children drop the database session and connections inherited
   from their parent: iris-backend 294ed4a1 and the tasks.py change of 9098c754;
 - IrisFacadeRenderer 0.2.0 built in: state by badge classes, ENVELOPE.md v1 only,
@@ -370,5 +372,27 @@ Each step ends with a `reply-NN.md`; the consumer verifies it and answers.
    files: a classic build that passes §4.2, §6, §7 and §8.
 2. Renderer 0.2.0 and its tests.
 3. `ci.yml` with every check of §9, green on GitHub.
-4. `release.yml`, `archive-image.sh`, `CHANGELOG.md`, `README.md`; then the tag text to the
-   owner.
+4. `release.yml`, `archive-image.sh`, `CHANGELOG.md`, `README.md` as in §13; then the tag
+   text to the owner.
+
+## 13. README
+
+`README.md` is in English and carries, for step 4 and K10:
+
+- what the image is and is not: the stock image plus §4–§7, nothing else; nginx and the
+  database stay stock 2.4.29;
+- each patch with its upstream commit (§4.1), and the note that the second patch's
+  docstring describes the 3.x layout and stays verbatim;
+- the modules: how to register and enable the renderer through Manage → Modules or the API
+  (`POST /manage/modules/add` with `{"module_name": "iris_facade_renderer_module"}`, then
+  `POST /manage/modules/enable/<id>`), the names that stay fixed (§5.1), that Manage →
+  Modules shows the version stored at registration, not the installed one, and that IRIS
+  registers the webhooks module itself on a fresh database (§6);
+- use with the upstream compose of 2.4.29 (`APP_IMAGE_NAME`, `APP_IMAGE_TAG`) and the way
+  back to the stock image (§7.3);
+- how to read the version: the labels (`docker image inspect`), the start line, and
+  `/usr/share/doc/iris-web-2x/VERSION`;
+- the license files and their path in the image (§8);
+- the release file on a host without registry access: `sha256sum -c`, `docker load`, the
+  Id against `CHANGELOG.md`, and the tag it loads under,
+  `ghcr.io/janwychowaniak/iris-web-2x:<version>`.
