@@ -1,0 +1,18 @@
+iris-web-2x
+
+This image is DFIR-IRIS 2.4.29 (https://github.com/dfir-iris/iris-web, tag v2.4.29,
+commit 340ce04080806a83837b713d01ea70632ee2b3f7), Copyright (C) 2021 - Airbus
+CyberSecurity (SAS), licensed under the GNU Lesser General Public License, version 3 or
+later. It modifies three files of IRIS, under /iriswebapp in the image:
+
+- app/iris_engine/module_handler/module_handler.py
+  from dfir-iris/iris-backend commit 294ed4a19bf7cfe60c75f20cacdbc79d91ce6a9f
+- app/iris_engine/tasker/tasks.py
+  from dfir-iris/iris-backend commit 9098c754089d28e9ebe448fb37a9ae55403b8b7e,
+  its change to this file only
+- iris-entrypoint.sh
+  this repository's own change: a start line naming the image and its version
+
+The patches are in patches/ of https://github.com/janwychowaniak/iris-web-2x, which is
+licensed under LGPL-3.0-or-later. LICENSE carries the LGPL-3.0 text and COPYING the
+GPL-3.0 text it builds on.

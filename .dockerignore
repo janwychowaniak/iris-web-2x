@@ -1,0 +1,7 @@
+# The build context is only what the Dockerfile copies.
+*
+!VERSION
+!LICENSE
+!COPYING
+!NOTICE
+!patches

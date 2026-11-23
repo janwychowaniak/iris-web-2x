@@ -1,0 +1,12 @@
+--- a/iris-entrypoint.sh
++++ b/iris-entrypoint.sh
+@@ -23,6 +23,9 @@
+ 
+ target=${1-:app}
+ 
++iw2x_version=$(cat /usr/share/doc/iris-web-2x/VERSION)
++printf 'iris-web-2x %s (DFIR-IRIS v%s)\n' "${iw2x_version}" "${iw2x_version%-*}"
++
+ printf "Running ${target} ...\n"
+ 
+ if [[ "${target}" == iris-worker ]] ; then

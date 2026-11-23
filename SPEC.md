@@ -58,7 +58,10 @@ held unless vetoed; `W` decisions for the owner; `C` the consumer's comments. Ro
   directory. Neither has a `pyproject.toml`, so pip 23 builds them without an isolated build
   environment and fetches nothing; the renderer keeps `setup.py` only for this reason.
 - Nothing is left behind: build files live in a temporary directory removed in the same
-  step, pip keeps no cache, and no IRIS code runs during the build.
+  step, pip keeps no cache, and no IRIS code runs during the build. No Python run during
+  the build writes bytecode (`PYTHONDONTWRITEBYTECODE=1` in that step): the base keeps none
+  for the standard library, which pip and `setup.py` import. The fork's own bytecode is
+  compiled explicitly with `compileall`, as the stock 1.0.9 had it.
 
 Repository layout:
 
@@ -67,7 +70,7 @@ Dockerfile, .dockerignore, VERSION
 patches/   0001-module-handler-reset-session.patch, 0002-tasks-worker-process-init.patch,
            0003-entrypoint-version-line.patch, stock.sha256, patched.sha256
 renderer/  setup.py, iris_facade_renderer_module/, tests/
-scripts/   the CI and release checks
+scripts/   build.sh (the classic build with its build arguments), the CI and release checks
 .github/   workflows/{ci,release,gitleaks}.yml, scripts/archive-image.sh
 LICENSE, COPYING, NOTICE, README.md, CHANGELOG.md
 ```
