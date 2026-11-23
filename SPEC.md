@@ -54,14 +54,17 @@ held unless vetoed; `W` decisions for the owner; `C` the consumer's comments. Ro
   (compose passes the command). `patch`, `git` and `sha256sum` are present.
 - The Dockerfile builds with the classic builder (`DOCKER_BUILDKIT=0`): no BuildKit syntax.
 - Network during the build: ghcr.io (the base) and github.com (the fork) only. Both
-  packages are installed with `pip install --no-deps --no-index --no-cache-dir` from a local
-  directory. Neither has a `pyproject.toml`, so pip 23 builds them without an isolated build
-  environment and fetches nothing; the renderer keeps `setup.py` only for this reason.
-- Nothing is left behind: build files live in a temporary directory removed in the same
-  step, pip keeps no cache, and no IRIS code runs during the build. No Python run during
-  the build writes bytecode (`PYTHONDONTWRITEBYTECODE=1` in that step): the base keeps none
-  for the standard library, which pip and `setup.py` import. The fork's own bytecode is
-  compiled explicitly with `compileall`, as the stock 1.0.9 had it.
+  packages are installed from a local directory with
+  `pip install --use-pep517 --no-build-isolation --no-deps --no-index --no-cache-dir`: pip
+  builds each into a wheel with the venv's setuptools 70.3.0, which needs no `wheel`
+  package, installs it with a `dist-info`, as the stock 1.0.9 was, and compiles its
+  bytecode. Nothing is fetched. `pip freeze` names the build directory as each package's
+  source, as the base names `/dependencies` for the stock wheel.
+- Nothing is left behind: build files and every temporary file (`TMPDIR`) live in a
+  directory removed in the same step, pip keeps no cache, and no IRIS code runs during the
+  build. No Python run during the build writes bytecode outside the installed packages
+  (`PYTHONDONTWRITEBYTECODE=1` in that step): the base keeps none for the standard library,
+  which pip imports.
 
 Repository layout:
 
@@ -69,7 +72,7 @@ Repository layout:
 Dockerfile, .dockerignore, VERSION
 patches/   0001-module-handler-reset-session.patch, 0002-tasks-worker-process-init.patch,
            0003-entrypoint-version-line.patch, stock.sha256, patched.sha256
-renderer/  setup.py, iris_facade_renderer_module/, tests/
+renderer/  setup.py, iris_facade_renderer_module/, tests/ (scripts/test-renderer.sh runs them)
 scripts/   build.sh (the classic build with its build arguments), the CI and release checks
 .github/   workflows/{ci,release,gitleaks}.yml, scripts/archive-image.sh
 LICENSE, COPYING, NOTICE, README.md, CHANGELOG.md
@@ -136,7 +139,8 @@ version stored at registration.
   only the standard library, so the tests reach it without IRIS (§11).
 - `IrisFacadeRendererInterface.py` is the IRIS side: hook registration as in 0.1.1, and the
   tab writer, `add_tab_attribute_field` with a rollback on failure (§5.6).
-- `setup.py` only, version `0.2.0`.
+- `setup.py`, as 0.1.1, version `0.2.0`; the package holds the module's four files, not the
+  tests.
 
 ### 5.3 Data
 
@@ -216,6 +220,9 @@ Rendering details (Z6):
   written.
 - The call reports success when every tab was written, `?` tabs included, and failure
   otherwise. An unsupported hook name is a failure, as in 0.1.1.
+- A fault while rendering one value, a bug in the module rather than in the data, stays in
+  that value's tab the same way: the `?` tab is written and the log says, at error,
+  `IOC #ID: 'KEY': rendering failed (TYPE: MESSAGE), rendered as "?"`.
 
 ## 6. Part C — the IrisWebHooks fork
 
@@ -366,6 +373,7 @@ database.
 7. The output of every row passed through the 2.4.29 filter configuration (bleach 6.1.0,
    `strip=True`) comes out unchanged: every class intact, no `style` anywhere.
 8. §5.1's names, parameters, defaults and hook name, pinned.
+9. A fault while rendering one value stays in its tab, as §5.6 says.
 
 ## 12. Steps (Z11)
 

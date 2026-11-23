@@ -5,3 +5,8 @@
 !COPYING
 !NOTICE
 !patches
+!renderer
+renderer/tests
+**/__pycache__
+**/*.egg-info
+renderer/build
