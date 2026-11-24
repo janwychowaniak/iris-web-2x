@@ -15,13 +15,13 @@ The image Id is what a host compares after `docker load` of a release file. On
 Docker's default `overlay2` image store, it is the digest of the image's
 configuration, which the archive carries byte for byte (see the README).
 
-## 2.4.29-1 — (pending: the date of the tag)
+## 2.4.29-1 — 2026-11-24
 
-`ghcr.io/janwychowaniak/iris-web-2x@sha256:` (pending: from the release
-workflow's step summary)
+`ghcr.io/janwychowaniak/iris-web-2x@sha256:56c58f51e3ccff58cc9822fc69d91faecf0ace53033fb22c786f0ec2a0044374`
 
-Image Id (configuration digest) `sha256:` (pending), after a pull and after
-`docker load` of the release file alike. Python (pending). Base
+Image Id (configuration digest)
+`sha256:02e5dfc012982572b6407fdb1f13bb30a794552a3b90b17c5ff0516e82ec7ad9`, after
+a pull and after `docker load` of the release file alike. Python 3.9.25. Base
 `ghcr.io/dfir-iris/iriswebapp_app@sha256:d7d23026bdde593278075821d3abc8649fe28d618d5784cc9875bd7a3d05699b`.
 
 DFIR-IRIS 2.4.29 (ghcr.io/dfir-iris/iriswebapp_app@sha256:d7d23026bdde593278075821d3abc8649fe28d618d5784cc9875bd7a3d05699b) with:
