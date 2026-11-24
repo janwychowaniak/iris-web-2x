@@ -35,7 +35,7 @@ jobs:
           test "v$(cat VERSION)" = "$GITHUB_REF_NAME" || {
             echo "::error::git tag $GITHUB_REF_NAME does not match VERSION $(cat VERSION)"; exit 1; }
 
-      - name: The renderer's tests and the proof of O3, on the tagged commit
+      - name: The renderer's tests and the worker patches' upstream lines, on the tagged commit
         run: |
           scripts/test-renderer.sh
           python3 -I scripts/check-upstream-lines.py
@@ -96,8 +96,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Without a credential, as a consumer pulls (W1). A package GHCR created private turns
-      # this job red until the owner makes it public; a re-run then goes on.
+      # Without a credential, as a consumer pulls: the package must be public. A package GHCR
+      # created private turns this job red until the owner makes it public; a re-run then
+      # goes on.
       - name: The package is public
         run: |
           docker manifest inspect "$IMAGE@$DIGEST" > /dev/null || {

@@ -193,9 +193,31 @@ The Dockerfile builds with the classic builder. Each script below runs in CI
 - `scripts/check-iris.sh <image>`: IRIS against the stock 2.4.29 database: the modules'
   health and the start line.
 
-Releases come from annotated `v*` tags
-([`.github/workflows/release.yml`](.github/workflows/release.yml)). Secret scanning runs as
-git hooks (`git config core.hooksPath .githooks`, once per clone) and in CI.
+Secret scanning runs as git hooks (`git config core.hooksPath .githooks`, once per clone)
+and in CI.
+
+## Releasing
+
+A release is one annotated tag, `v<version>`, and
+[`.github/workflows/release.yml`](.github/workflows/release.yml) does the rest. A later fix
+of the 2.x line is a release of its own, `2.4.29-N`.
+
+1. `VERSION` holds the new version, the only place it is declared; the build checks its
+   base part against IRIS's own version.
+2. `CHANGELOG.md` gets the version's entry: placeholders for the date, the digest, the
+   image Id and the Python, the base digest, and the notes, which are the tag message to be.
+3. `main` is pushed and CI is green on the commit the tag will name. The release runs the
+   same checks on the runner before it publishes, and a tag is never pushed again, so a
+   failure after the tag would cost the version.
+4. The annotated tag names that commit, with the message the `CHANGELOG.md` entry carries.
+   The workflow refuses a lightweight tag, or one that differs from `VERSION`, before it
+   builds anything.
+5. The workflow publishes `ghcr.io/janwychowaniak/iris-web-2x:<version>` (no `latest`),
+   then attaches the archive and its checksum to the GitHub Release. Its archive job first
+   reads the image without a credential: should the package not be public, it stops there;
+   make the package public and re-run the failed job.
+6. The date, the digest, the Id and the Python from the run's step summary go into the
+   `CHANGELOG.md` entry, in a commit of their own.
 
 ## License
 

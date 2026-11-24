@@ -3,9 +3,9 @@ python - < scripts/iris-health.py, from /iriswebapp.
 
 Importing IRIS runs its post-init, which sets the database up and registers IRIS's default
 modules. IRIS catches a failed post-init and only logs it, so the registration it leaves
-is checked: the fork registered by IRIS itself, disabled, with its version (SPEC §6), and
-the renderer not registered (O8). Then IRIS's own health check, on instances created by
-instantiate_module_from_name, must pass for both modules.
+is checked: the fork registered by IRIS itself, disabled, with its version, and the
+renderer not registered, since the image registers no module. Then IRIS's own health
+check, on instances created by instantiate_module_from_name, must pass for both modules.
 """
 import sys
 

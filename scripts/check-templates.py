@@ -1,5 +1,5 @@
 """Render IRIS's attribute tab buttons and panes, and resolve each button's target as
-Bootstrap 4.6.2 does (SPEC §4.3). Runs inside a container of an image, from /iriswebapp,
+Bootstrap 4.6.2 does. Runs inside a container of an image, from /iriswebapp,
 with the image's own Jinja2 and lxml:
 
     python - [--html] < scripts/check-templates.py

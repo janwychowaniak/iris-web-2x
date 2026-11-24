@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The image checks of SPEC §9 that need no database: packages, filesystem, labels and
+"""The image checks of CI that need no database: packages, filesystem, labels and
 configuration, and the copy of IRIS's filter the tests use. The image is compared with the
 base its Dockerfile names.
 
@@ -106,7 +106,7 @@ def check_filesystem(base, image):
     b, i = inventory(base), inventory(image)
     differing = sorted(p for p in set(b) | set(i) if b.get(p) != i.get(p))
     outside = [p for p in differing if not ALLOWED.match(p)]
-    check(not outside, "filesystem differs from the base's only where SPEC allows (%d entries)"
+    check(not outside, "filesystem differs from the base's only in the image's own changes (%d entries)"
           % len(differing), "%d outside, first: %s" % (len(outside), outside[:5]))
 
     for path, digest in PATCHED.items():
@@ -152,11 +152,11 @@ def check_labels_and_config(base, image, revision):
             "DFIR-IRIS 2.4.29 with two upstream worker fixes and two modules built in",
     }
     got = {k: v for k, v in labels.items() if k in want}
-    check(got == want, "labels of SPEC §7.2",
+    check(got == want, "the image's labels",
           "differ: %s" % sorted(k for k in want if labels.get(k) != want[k]))
     extra = set(labels) - set(want) - {"org.opencontainers.image.revision",
                                          "org.opencontainers.image.created"}
-    check(not extra, "no label besides those of SPEC §7.2", "others: %s" % sorted(extra))
+    check(not extra, "no label besides the image's own", "others: %s" % sorted(extra))
     rev = labels.get("org.opencontainers.image.revision", "")
     check(rev == revision if revision else bool(rev), "label revision %s" % (revision or "set"),
           "got %r" % rev)
@@ -172,7 +172,7 @@ def check_labels_and_config(base, image, revision):
 
 # The tab names whose button opens its pane on the stock templates of 2.4.29, under its
 # Bootstrap 4.6.2: only the new-case modal's ids start with a letter, and they hold only
-# while the name has no punctuation (SPEC §4.3).
+# while the name has no punctuation.
 STOCK_OPENS = {"shared nav": [], "case info": [],
                "new case": ["VT Report", "1 leading digit", "Zażółć gęślą jaźń"]}
 

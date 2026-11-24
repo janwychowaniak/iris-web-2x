@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# The image checks of SPEC §9 that run IRIS, against the stock 2.4.29 database:
+# The image checks of CI that run IRIS, against the stock 2.4.29 database:
 #   module health  a container of the image imports IRIS, whose post-init sets the database up,
 #                  and scripts/iris-health.py checks the registration and both modules' health;
-#   start line     the entrypoint, as iriswebapp and as iris-worker, prints the line of SPEC §7.3,
+#   start line     the entrypoint, as iriswebapp and as iris-worker, prints the image's version line,
 #                  then "Running <target> ...", before the server's first line.
 #
 #   check-iris.sh <image>

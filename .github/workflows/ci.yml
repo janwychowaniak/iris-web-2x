@@ -10,9 +10,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-      - name: The renderer's tests, in the stock base image (SPEC §11)
+      - name: The renderer's tests, in the stock base image
         run: scripts/test-renderer.sh -v
-      - name: The worker patches carry upstream's lines byte for byte (O3)
+      - name: The worker patches carry upstream's lines byte for byte
         run: python3 -I scripts/check-upstream-lines.py
 
   image:
@@ -23,7 +23,7 @@ jobs:
       IMAGE: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@v5
-      - name: Classic build, with the checks of SPEC §4.2, §6 and §7.1
+      - name: Classic build, with its checks of the patches, the fork and the version
         run: scripts/build.sh "$IMAGE:$(cat VERSION)"
       - name: Packages, filesystem, labels and configuration, filter copy
         run: python3 -I scripts/check-image.py "$IMAGE:$(cat VERSION)" --revision "$GITHUB_SHA"

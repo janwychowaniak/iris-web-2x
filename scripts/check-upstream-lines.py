@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove that each worker patch carries upstream's lines byte for byte (SPEC §4.2, O3).
+"""Prove that each worker patch carries upstream's lines byte for byte.
 
 For every patch below, the sequence of lines it removes and the sequence of lines it adds
 must equal those of its upstream commit's change to the named file. The context lines are

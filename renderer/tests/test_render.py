@@ -1,4 +1,4 @@
-"""IrisFacadeRenderer 0.2.0 tests (SPEC §11). Run in the stock base image, where bleach is
+"""IrisFacadeRenderer 0.2.0 tests. Run in the stock base image, where bleach is
 IRIS's own 6.1.0: scripts/test-renderer.sh."""
 import copy
 import types
@@ -105,7 +105,7 @@ def footer(key):
 
 
 class TableRows(unittest.TestCase):
-    """Every row of SPEC §5.5 to its badge class, text and details."""
+    """Every state of a value to its badge class, text and details."""
 
     def test_known_positive_with_stats(self):
         out, ok = render.render_value("vt", VT_KNOWN)
@@ -248,7 +248,8 @@ class Unrecognised(unittest.TestCase):
 
 
 class TheLoop(unittest.TestCase):
-    """One value or one write affects its own tab only (SPEC §5.6)."""
+    """One value or one write affects its own tab only; a failed write or a fault while
+    rendering makes the call report failure."""
 
     def test_a_bad_value_does_not_stop_the_others(self):
         log, writer = Log(), Writer()
@@ -413,7 +414,7 @@ class IrisFilter(unittest.TestCase):
 
 
 class Identity(unittest.TestCase):
-    """What a database registering 0.1.1 holds stays the same (SPEC §5.1)."""
+    """What a database registering 0.1.1 holds stays the same."""
 
     def test_names(self):
         self.assertEqual(getattr(package, "__iris_module_interface"), "IrisFacadeRendererInterface")
