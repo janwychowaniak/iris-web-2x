@@ -3,7 +3,7 @@
 DFIR-IRIS 2.4.29 with two upstream worker fixes backported and two modules built in.
 
 `ghcr.io/janwychowaniak/iris-web-2x:2.4.29-N` is the stock DFIR-IRIS application image,
-`ghcr.io/dfir-iris/iriswebapp_app:v2.4.29`, plus four things and nothing else:
+`ghcr.io/dfir-iris/iriswebapp_app:v2.4.29`, plus five things and nothing else:
 
 - two fixes for the Celery worker, taken from the IRIS 3.x backend;
 - a fix of 2.4.29's attribute tab buttons, which open nothing under its own Bootstrap;

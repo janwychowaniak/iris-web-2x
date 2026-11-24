@@ -53,6 +53,8 @@ held unless vetoed; `W` decisions for the owner; `C` the consumer's comments. Ro
 | C7 | The README's badge table says what the renderer does: `score N` without stats, green for a score of 0 or below | agreed | 09 |
 | C8 | The README names the warning badge's colour amber | agreed | 09 |
 | C9 | The template check runs on the stock templates as its control and must fail there where a browser does (§9) | agreed | 09 |
+| C10 | The README counts its list of changes right | agreed | 10 |
+| C11 | A tab name with a CR, a CRLF or an FF opens its pane too; the check reads CR, CRLF and FF as CSS does (§4.3, §9) | agreed | 10 |
 
 ## 3. The base and the build
 
@@ -157,7 +159,8 @@ on Info.
   while the tab's name has no punctuation.
 - **Fix (Z13, Z14).** Each of these buttons gets a `data-target`, which Bootstrap 4.6.2
   reads before `href`: an attribute selector for the pane's own id, the id written as a CSS
-  string, `\` and `"` escaped and a line break as `\a `:
+  string: `\` and `"` escaped; CR and CRLF turned into LF, as the HTML parser turns them in
+  the pane's id; a line break escaped as `\a ` and a form feed as `\c ` (C11):
   `data-target='[id="{{ (page_uid ~ loop.index ~ '_' ~ ca.lower() | replace(' ', '_')) | replace(...) }}"]'`,
   with `'itab_' ~` in front in the new-case modal. Nothing else in the modals changes: the
   panes, their ids, `href`, `aria-*`, the inputs and the `data-*` attributes IRIS reads.
@@ -356,7 +359,7 @@ On every push and pull request, `runs-on: ubuntu-24.04` (Z9), with a job timeout
 | packages | `scripts/check-image.py`, as the next three rows: `iris_webhooks_module` `1.0.9+jw.2` and `iris_facade_renderer_module` `0.2.0`; `pip freeze --all` differs from the base's in exactly these two lines; the Debian package lists are identical (Z8) |
 | filesystem | against the base, every entry with its type, mode, owner, size and sha256 (`scripts/inventory.py`): the only differences are the two packages in `/opt/venv`, the six patched files with their modes and owners kept and their recorded sha256, and `/usr/share/doc/iris-web-2x/` with the repository's four files at mode `644`; the renderer package holds its four files, equal to the repository's, and their bytecode (Z8) |
 | labels | §7.2 and no other label; entrypoint, command, working directory, environment and user are the base's |
-| templates | `scripts/check-templates.py`, from `check-image.py`: the three templates of §4.3 compiled whole and rendered with the image's own Jinja2, for tab names with spaces, a leading digit, Polish letters, a double quote, parentheses, a dot, a backslash, an apostrophe, a colon and a line break, parsed with its lxml; each button's target resolved as Bootstrap 4.6.2 does, `#` with exactly one CSS identifier or `[id="…"]` with a CSS string, and nothing else; every button must open its own pane, and the buttons must differ from the stock ones by `data-target` alone. The same check on the stock image is the control (C9): no attribute tab of the shared or the case information modal opens there, and of the new-case modal only `VT Report`, `1 leading digit` and `Zażółć gęślą jaźń` |
+| templates | `scripts/check-templates.py`, from `check-image.py`: the three templates of §4.3 compiled whole and rendered with the image's own Jinja2, for tab names with spaces, a leading digit, Polish letters, a double quote, parentheses, a dot, a backslash, an apostrophe, a colon, a line break, a carriage return, a CRLF and a form feed, parsed with its lxml; each button's target resolved as Bootstrap 4.6.2 does, after CSS's own reading of CR, CRLF and FF as LF, `#` with exactly one CSS identifier or `[id="…"]` with a CSS string, and nothing else; every button must open its own pane, and the buttons must differ from the stock ones by `data-target` alone. The same check on the stock image is the control (C9): no attribute tab of the shared or the case information modal opens there, and of the new-case modal only `VT Report`, `1 leading digit` and `Zażółć gęślą jaźń` |
 | filter copy | the 2.4.29 filter configuration the tests use equals the block in the image's `/iriswebapp/app/__init__.py` |
 | module health | `scripts/check-iris.sh`, as the next row, with the stock `ghcr.io/dfir-iris/iriswebapp_db:v2.4.29` pinned at `sha256:081ad194332887ca584a9240e8e9dea94129a235e8b38ff42c1938358be432f5`: a container of the built image imports IRIS, whose post-init sets that database up; IRIS catches a failed post-init and only logs it, so the registration it leaves is checked, `iris_webhooks_module` `1.0.9+jw.2` disabled and the renderer unregistered; then, in the application context, `instantiate_module_from_name` and `check_module_health` pass for both modules |
 | start line | the entrypoint run as `iriswebapp` and as `iris-worker` against that database: the log, in time order, starts with §7.3's line, then `Running <target> ...`, then the server's first line |

@@ -5,7 +5,7 @@
                          {% for ca in attributes %}
                              <li class="nav-item submenu">
 -                                <a class="nav-link"  data-toggle="pill" href="#{{page_uid}}{{ loop.index }}_{{  ca.lower() | replace(' ', '_' ) }}" role="tab" aria-controls="{{page_uid}}{{ loop.index }}_{{  ca.lower() | replace(' ', '_' ) }}" aria-selected="false">{{ca}}</a>
-+                                <a class="nav-link"  data-toggle="pill" data-target='[id="{{ (page_uid ~ loop.index ~ '_' ~ ca.lower() | replace(' ', '_')) | replace('\\', '\\\\') | replace('"', '\\"') | replace('\n', '\\a ') }}"]' href="#{{page_uid}}{{ loop.index }}_{{  ca.lower() | replace(' ', '_' ) }}" role="tab" aria-controls="{{page_uid}}{{ loop.index }}_{{  ca.lower() | replace(' ', '_' ) }}" aria-selected="false">{{ca}}</a>
++                                <a class="nav-link"  data-toggle="pill" data-target='[id="{{ (page_uid ~ loop.index ~ '_' ~ ca.lower() | replace(' ', '_')) | replace('\\', '\\\\') | replace('"', '\\"') | replace('\r\n', '\n') | replace('\r', '\n') | replace('\n', '\\a ') | replace('\f', '\\c ') }}"]' href="#{{page_uid}}{{ loop.index }}_{{  ca.lower() | replace(' ', '_' ) }}" role="tab" aria-controls="{{page_uid}}{{ loop.index }}_{{  ca.lower() | replace(' ', '_' ) }}" aria-selected="false">{{ca}}</a>
                              </li>
                          {% endfor %}
                      {% endif %}

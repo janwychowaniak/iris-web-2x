@@ -23,7 +23,8 @@ import jinja2
 import lxml.html
 
 NAMES = ["VT Report", "1 leading digit", "Zażółć gęślą jaźń", 'Say "hi"', "Report (beta)",
-         "v1.2", "back\\slash", "a'quote", "x:y", "line\nbreak"]
+         "v1.2", "back\\slash", "a'quote", "x:y", "line\nbreak", "carriage\rreturn",
+         "crlf\r\nbreak", "form\ffeed"]
 TEMPLATES = {
     "shared nav": ("modals/modal_attributes_nav.html", False, False),
     "case info": ("modal_case_info_from_case.html", True, False),
@@ -139,7 +140,14 @@ def css_string(body, quote):
 
 
 def resolve(selector, ids):
-    """The id of the element document.querySelector(selector) would find, or None."""
+    """The id of the element document.querySelector(selector) would find, or None.
+
+    The selector is the attribute's value as an HTML parser leaves it: lxml, as a browser,
+    has already turned CR and CRLF into LF. CSS then reads CR, CRLF and FF as LF too, before
+    anything else (CSS Syntax Level 3, §3.3), so an unescaped FF ends a string like a LF.
+    """
+    selector = (selector.replace("\r\n", "\n").replace("\r", "\n").replace("\f", "\n")
+                .replace("\0", "\ufffd"))
     if selector.startswith("#"):
         name = identifier(selector[1:])
     else:
