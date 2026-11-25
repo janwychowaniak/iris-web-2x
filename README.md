@@ -3,10 +3,12 @@
 DFIR-IRIS 2.4.29 with two upstream worker fixes backported and two modules built in.
 
 `ghcr.io/janwychowaniak/iris-web-2x:2.4.29-N` is the stock DFIR-IRIS application image,
-`ghcr.io/dfir-iris/iriswebapp_app:v2.4.29`, plus five things and nothing else:
+`ghcr.io/dfir-iris/iriswebapp_app:v2.4.29`, plus six things and nothing else:
 
 - two fixes for the Celery worker, taken from the IRIS 3.x backend;
 - a fix of 2.4.29's attribute tab buttons, which open nothing under its own Bootstrap;
+- a fix of 2.4.29's start, whose database migration disables the loggers that exist at that
+  moment, Celery's and gunicorn's among them;
 - the IrisFacadeRenderer module 0.2.0, built from this repository;
 - a fork of the IrisWebHooks module, `1.0.9+jw.2`, in place of the stock 1.0.9;
 - the image's own version, in labels, in a file and in the start log.
@@ -32,7 +34,7 @@ the stock image stay open on 2.4.29:
 
 ## The changes to IRIS
 
-Six files of IRIS change; each patch is in [`patches/`](patches), and the build checks
+Seven files of IRIS change; each patch is in [`patches/`](patches), and the build checks
 every file's sha256 before and after patching.
 
 | File, under `/iriswebapp` | Change | Origin |
@@ -41,6 +43,7 @@ every file's sha256 before and after patching.
 | `app/iris_engine/tasker/tasks.py` | the `task_prerun` handler becomes a `worker_process_init` handler that discards the inherited pool with `db.engine.dispose(close=False)` inside an application context | [`dfir-iris/iris-backend` `9098c754`](https://github.com/dfir-iris/iris-backend/commit/9098c754089d28e9ebe448fb37a9ae55403b8b7e), its change to this file only |
 | `iris-entrypoint.sh` | the start line (below) | this repository |
 | `app/templates/modals/modal_attributes_nav.html`, `app/blueprints/manage/templates/modal_case_info_from_case.html`, `app/blueprints/manage/templates/modal_add_case.html` | each attribute tab button names its pane in a `data-target` (below) | this repository |
+| `app/alembic/env.py` | its `fileConfig` call passes `disable_existing_loggers=False`, so the loggers that exist when the migration configures logging stay enabled (below) | this repository |
 
 The two worker patches carry upstream's added and removed lines byte for byte, written
 against the 2.4.29 files; CI proves it. The docstring of the second describes the 3.x
@@ -55,6 +58,15 @@ which the Bootstrap 4.6.2 that 2.4.29 ships cannot select; the new-case modal's 
 same way on a tab name with punctuation. Each button now names its pane in a
 `data-target` attribute selector, which holds any name; the panes and everything else in
 the modals stay as they are.
+
+**The loggers.** With `IRIS_WORKER` unset, as the upstream compose leaves it, IRIS's
+post-init runs the database migration on every start of the app and of the worker.
+Alembic's `env.py` then configures logging from `alembic.ini` with `fileConfig`, which by
+default disables every existing logger outside those the file names and their children. In
+stock 2.4.29 that silences, in the worker's pool children, Celery's lines on how each task
+ended and on a signal handler that raised, and, in the gunicorn worker, gunicorn's error
+log. The call now leaves those loggers enabled; the levels, handlers and formats it sets
+stay as they were.
 
 ## The modules
 
@@ -118,7 +130,7 @@ In its `.env`, set the first and add the second, which `.env.model` does not hav
 
 ```
 APP_IMAGE_NAME=ghcr.io/janwychowaniak/iris-web-2x
-APP_IMAGE_TAG=2.4.29-1
+APP_IMAGE_TAG=2.4.29-2
 ```
 
 and recreate the containers with `docker compose up -d`. nginx and the database stay
@@ -135,7 +147,7 @@ the stock 1.0.9.
   the commit it was built from, `.base.digest` the stock image's digest:
 
   ```bash
-  docker image inspect --format '{{json .Config.Labels}}' ghcr.io/janwychowaniak/iris-web-2x:2.4.29-1
+  docker image inspect --format '{{json .Config.Labels}}' ghcr.io/janwychowaniak/iris-web-2x:2.4.29-2
   ```
 
 - **The start log:** in both the app's and the worker's log, the entrypoint names the image,
@@ -144,7 +156,7 @@ the stock 1.0.9.
   come before it.
 
   ```
-  iris-web-2x 2.4.29-1 (DFIR-IRIS v2.4.29)
+  iris-web-2x 2.4.29-2 (DFIR-IRIS v2.4.29)
   ```
 
 - **The file:** `/usr/share/doc/iris-web-2x/VERSION`.
@@ -156,9 +168,9 @@ Every release on GitHub carries the published image as a file,
 `iris-web-2x-<version>.tar.gz.sha256` beside it. On the target host:
 
 ```bash
-sha256sum -c iris-web-2x-2.4.29-1.tar.gz.sha256
-docker load -i iris-web-2x-2.4.29-1.tar.gz
-docker image inspect --format '{{.Id}}' ghcr.io/janwychowaniak/iris-web-2x:2.4.29-1
+sha256sum -c iris-web-2x-2.4.29-2.tar.gz.sha256
+docker load -i iris-web-2x-2.4.29-2.tar.gz
+docker image inspect --format '{{.Id}}' ghcr.io/janwychowaniak/iris-web-2x:2.4.29-2
 ```
 
 The last line must print the image Id (configuration digest) that
@@ -172,11 +184,11 @@ The same Id can be checked without Docker: the archive's `manifest.json` names t
 configuration blob, and that blob's SHA-256 is the Id.
 
 ```bash
-config=$(tar -xzOf iris-web-2x-2.4.29-1.tar.gz manifest.json | grep -o '"Config":"[^"]*"' | cut -d'"' -f4)
-tar -xzOf iris-web-2x-2.4.29-1.tar.gz "$config" | sha256sum   # the Id, without "sha256:"
+config=$(tar -xzOf iris-web-2x-2.4.29-2.tar.gz manifest.json | grep -o '"Config":"[^"]*"' | cut -d'"' -f4)
+tar -xzOf iris-web-2x-2.4.29-2.tar.gz "$config" | sha256sum   # the Id, without "sha256:"
 ```
 
-The archive loads under `ghcr.io/janwychowaniak/iris-web-2x:2.4.29-1`, the name the two
+The archive loads under `ghcr.io/janwychowaniak/iris-web-2x:2.4.29-2`, the name the two
 compose variables above give, so `docker compose up -d` uses it without a pull.
 
 ## Building and checking
@@ -191,7 +203,9 @@ The Dockerfile builds with the classic builder. Each script below runs in CI
 - `scripts/check-image.py <image>`: packages, filesystem, labels and configuration against
   the stock image;
 - `scripts/check-iris.sh <image>`: IRIS against the stock 2.4.29 database: the modules'
-  health and the start line.
+  health, the start line, and the worker's log of the exception that a signal handler
+  raises in a pool child; CI also runs that last check on `2.4.29-2` as a control
+  (`--control`), where the exception must stay out of the log.
 
 Secret scanning runs as git hooks (`git config core.hooksPath .githooks`, once per clone)
 and in CI.

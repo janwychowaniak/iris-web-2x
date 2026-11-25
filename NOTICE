@@ -3,7 +3,7 @@ iris-web-2x
 This image is DFIR-IRIS 2.4.29 (https://github.com/dfir-iris/iris-web, tag v2.4.29,
 commit 340ce04080806a83837b713d01ea70632ee2b3f7), Copyright (C) 2021 - Airbus
 CyberSecurity (SAS), licensed under the GNU Lesser General Public License, version 3 or
-later. It modifies six files of IRIS, under /iriswebapp in the image:
+later. It modifies seven files of IRIS, under /iriswebapp in the image:
 
 - app/iris_engine/module_handler/module_handler.py
   from dfir-iris/iris-backend commit 294ed4a19bf7cfe60c75f20cacdbc79d91ce6a9f
@@ -17,6 +17,9 @@ later. It modifies six files of IRIS, under /iriswebapp in the image:
 - app/blueprints/manage/templates/modal_add_case.html
   this repository's own change: each attribute tab button names its pane in a
   data-target, so that it opens under IRIS 2.4.29's Bootstrap 4.6.2
+- app/alembic/env.py
+  this repository's own change: alembic's logging configuration leaves the loggers
+  that exist enabled (disable_existing_loggers=False)
 
 The patches are in patches/ of https://github.com/janwychowaniak/iris-web-2x, which is
 licensed under LGPL-3.0-or-later. LICENSE carries the LGPL-3.0 text and COPYING the

@@ -28,12 +28,7 @@ DETAILS = {
 
 UNRECOGNISED = "This value is not an ENVELOPE.md v1 response or error."
 
-# The shapes of ENVELOPE.md v1 the renderer reads. An envelope: exactly query, known, verdict
-# and report; query an object with a string artifact; known a boolean; with known true, a
-# verdict whose score is a number; with known false, verdict and report both null, or a
-# verdict whose score is a number. An error body: exactly error, an object with a string code
-# and message and nothing besides upstream. A boolean is not a number; the fields the renderer
-# does not read are not checked.
+# The shapes of ENVELOPE.md v1 the renderer reads (SPEC §5.4).
 KNOWN, UNKNOWN, NO_FINDINGS, ERROR = "known", "unknown", "no findings", "error"
 _ENVELOPE_KEYS = {"query", "known", "verdict", "report"}
 _ERROR_KEYS = {"code", "message", "upstream"}

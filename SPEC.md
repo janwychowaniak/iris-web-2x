@@ -22,7 +22,7 @@ revision and the creation time; `org.opencontainers.image.description` stays as 
 IDs: `O` the owner's decisions in the order; `Z` the maintainer's assumptions, held unless
 vetoed; `W` decisions for the owner; `P` gaps in the order, for the consumer; `C` the
 consumer's remarks. Round 01 is the order with `reply-01`, round 02 `query-02` with
-`reply-02`.
+`reply-02`, round 03 `query-03` with `reply-03`.
 
 | ID | Decision | Status | Round |
 |---|---|---|---|
@@ -38,6 +38,8 @@ consumer's remarks. Round 01 is the order with `reply-01`, round 02 `query-02` w
 | W1 | The measurement on `2.4.29-1` runs before the go on this file (step 0, §6) | agreed (owner) | 02 |
 | C1 | The check reads the log only after a second receiver, connected after the raising one, has written its own marker, so the control's absence is read past the point where the line would come (§3.3) | agreed | 02 |
 | C2 | The measurement's probes, with how the stack and the task are started, are handed over in the rounds folder with the reply of the step that first uses them (§3.4) | agreed | 02 |
+| O4 | The owner's go on this file for the implementation | given (owner) | 03 |
+| C3 | `scripts/check-iris.sh` and the measurement's `run.sh` remove their containers with their anonymous volumes (`docker rm -v`) | agreed | 03 |
 
 ## 3. Part A — the loggers
 
@@ -92,8 +94,9 @@ worker) runs as before.
 
 ### 3.3 The test in CI (Z2, Z3)
 
-A check in `scripts/check-iris.sh`, against the stock database it already starts, with
-`IRIS_WORKER` unset as in its other checks:
+A check in `scripts/check-iris.sh`, the signal log, against the stock database it already
+starts, with `IRIS_WORKER` unset as in its other checks; the probe is
+`scripts/signal-probe/sitecustomize.py`:
 
 - The worker runs from the image's entrypoint as `./iris-entrypoint.sh iris-worker`, with a
   test-only directory mounted read-only and named by `PYTHONPATH`. Its `sitecustomize.py`
@@ -103,16 +106,19 @@ A check in `scripts/check-iris.sh`, against the stock database it already starts
   `RuntimeError`; the second writes a second marker the same way (C1). Celery's
   `Signal.send` calls the receivers in the order they were connected and logs a receiver's
   exception before it calls the next, so Celery's line, if it comes, comes between the two
-  markers. The check reads the log once the second marker is there.
+  markers. The check reads the worker's stderr, one stream in the order the processes
+  wrote it, once a pool child's second marker is in it.
 - No broker: Celery starts the pool before the consumer (the `Pool` bootstep comes before
   `Consumer`, which is last), so the children run `worker_process_init` without one.
-- On the built image the check passes when, for a pool child, the worker's log holds the
-  first marker, then `Signal handler <…> raised: RuntimeError(…)` with its traceback, then
-  the second marker.
+- On the built image the check passes when, for every pool child that wrote both markers,
+  and at least one did, the worker's log holds between them
+  `Signal handler <…> raised: RuntimeError('iw2x-signal-probe <process name>')` followed by
+  its traceback.
 - CI runs the same check on `2.4.29-1`,
   `ghcr.io/janwychowaniak/iris-web-2x@sha256:56c58f51e3ccff58cc9822fc69d91faecf0ace53033fb22c786f0ec2a0044374`,
-  as a control: there both markers must appear and the line must not come between them, and
-  the CI step is green only then. The markers show that the handler ran and that the point
+  as a control, through `scripts/check-iris.sh --control <image>`, which starts the database
+  and runs this check alone. There at least one pool child must write both markers and the
+  log must hold no line of the exception, and the CI step is green only then. The markers show that the handler ran and that the point
   where the line would come has passed, so the control fails for the expected reason.
 - The release workflow runs the check on the built image with the other image checks;
   the control runs in CI only.
@@ -204,7 +210,8 @@ tests' docstrings stay as on `main`: the tests are not installed.
 - **README:** the list of what the image adds gains the loggers' fix; "Six files of IRIS
   change" becomes seven; the table gains the row of `app/alembic/env.py` ("the migration's
   logging configuration leaves the loggers that exist enabled", this repository), and a
-  paragraph says what was disabled and why. The examples name `2.4.29-2`.
+  paragraph says what was disabled and why. The list of checks names the signal log and its
+  control. The examples name `2.4.29-2`.
 - **NOTICE:** "six files" becomes seven, and `app/alembic/env.py` is listed as this
   repository's own change: the loggers that exist when the migration configures logging
   stay enabled.

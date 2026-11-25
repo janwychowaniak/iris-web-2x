@@ -1,0 +1,11 @@
+--- a/app/alembic/env.py
++++ b/app/alembic/env.py
+@@ -9,7 +9,7 @@
+ 
+ # Interpret the config file for Python logging.
+ # This line sets up loggers basically.
+-fileConfig(config.config_file_name)
++fileConfig(config.config_file_name, disable_existing_loggers=False)
+ 
+ import os
+ os.environ["ALEMBIC"] = "1"

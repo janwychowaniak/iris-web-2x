@@ -27,8 +27,12 @@ jobs:
         run: scripts/build.sh "$IMAGE:$(cat VERSION)"
       - name: Packages, filesystem, labels and configuration, filter copy
         run: python3 -I scripts/check-image.py "$IMAGE:$(cat VERSION)" --revision "$GITHUB_SHA"
-      - name: Module health and start line, against the stock 2.4.29 database
+      - name: Module health, start line and the worker's signal log, against the stock 2.4.29 database
         run: scripts/check-iris.sh "$IMAGE:$(cat VERSION)"
+      # 2.4.29-1's post-init disables Celery's loggers: there the probe's handler must run and its
+      # exception must stay out of the log.
+      - name: "Control: the signal log on 2.4.29-1"
+        run: scripts/check-iris.sh --control ghcr.io/janwychowaniak/iris-web-2x@sha256:56c58f51e3ccff58cc9822fc69d91faecf0ace53033fb22c786f0ec2a0044374
       # No record to compare with: the image was never pushed. The release runs it against one.
       - name: Archive round trip
         working-directory: ${{ runner.temp }}
