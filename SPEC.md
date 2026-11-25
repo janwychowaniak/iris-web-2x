@@ -20,21 +20,24 @@ revision and the creation time; `org.opencontainers.image.description` stays as 
 ## 2. Decisions
 
 IDs: `O` the owner's decisions in the order; `Z` the maintainer's assumptions, held unless
-vetoed; `W` decisions for the owner; `P` gaps in the order, for the consumer. Round 01 is
-the order with `reply-01`.
+vetoed; `W` decisions for the owner; `P` gaps in the order, for the consumer; `C` the
+consumer's remarks. Round 01 is the order with `reply-01`, round 02 `query-02` with
+`reply-02`.
 
 | ID | Decision | Status | Round |
 |---|---|---|---|
 | O1–O4 | As in the order's §3: A and B and nothing else; the requirement is the order's §4.1, the mechanism the maintainer's; version `2.4.29-2`, tag `v2.4.29-2`, the README's release procedure; nothing public without the owner's word, implementation only after the owner's go on this file | agreed | 01 |
-| Z1 | The change is `disable_existing_loggers=False` in the one call, as patch `0007-alembic-env-keep-loggers.patch` (§3.2) | proposed | 01 |
-| Z2 | The CI test raises from a test-only `worker_process_init` handler that a mounted `sitecustomize.py` connects in each pool child; no broker (§3.3) | proposed | 01 |
-| Z3 | CI runs the test on `2.4.29-1`, pinned by its registry digest, as a control that must fail for the expected reason; the step is green when it does (§3.3) | proposed | 01 |
-| Z4 | The measurement's method (§3.4); its tooling stays out of the repository, its results go into §3.4 | proposed | 01 |
-| Z5 | B by the released text: `render.py` returns to its text in `v2.4.29-1`; the version stays 0.2.0 (§4) | proposed | 01 |
-| Z6 | The README, the notice, the Dockerfile's comments and `CHANGELOG.md` as in §5; the README's examples name `2.4.29-2` | proposed | 01 |
-| Z7 | The tag message lists every change of the image, those of `2.4.29-1` included (§7) | proposed | 01 |
-| Z8 | Steps as in §6 | proposed | 01 |
-| W1 | The measurement on `2.4.29-1` runs before the go on this file (step 0, §6) | open | 01 |
+| Z1 | The change is `disable_existing_loggers=False` in the one call, as patch `0007-alembic-env-keep-loggers.patch` (§3.2) | agreed | 02 |
+| Z2 | The CI test raises from a test-only `worker_process_init` handler that a mounted `sitecustomize.py` connects in each pool child; no broker (§3.3) | agreed | 02 |
+| Z3 | CI runs the test on `2.4.29-1`, pinned by its registry digest, as a control that must fail for the expected reason; the step is green when it does (§3.3) | agreed | 02 |
+| Z4 | The measurement's method (§3.4); its tooling stays out of the repository, its results go into §3.4 | agreed | 02 |
+| Z5 | B by the released text: `render.py` returns to its text in `v2.4.29-1`; the version stays 0.2.0 (§4) | agreed | 02 |
+| Z6 | The README, the notice, the Dockerfile's comments and `CHANGELOG.md` as in §5; the README's examples name `2.4.29-2` | agreed | 02 |
+| Z7 | The tag message lists every change of the image, those of `2.4.29-1` included (§7) | agreed | 02 |
+| Z8 | Steps as in §6 | agreed | 02 |
+| W1 | The measurement on `2.4.29-1` runs before the go on this file (step 0, §6) | agreed (owner) | 02 |
+| C1 | The check reads the log only after a second receiver, connected after the raising one, has written its own marker, so the control's absence is read past the point where the line would come (§3.3) | agreed | 02 |
+| C2 | The measurement's probes, with how the stack and the task are started, are handed over in the rounds folder with the reply of the step that first uses them (§3.4) | agreed | 02 |
 
 ## 3. Part A — the loggers
 
@@ -94,38 +97,96 @@ A check in `scripts/check-iris.sh`, against the stock database it already starts
 
 - The worker runs from the image's entrypoint as `./iris-entrypoint.sh iris-worker`, with a
   test-only directory mounted read-only and named by `PYTHONPATH`. Its `sitecustomize.py`
-  registers an at-fork hook; in each pool child it connects a `worker_process_init`
-  handler (the signal patch 0002's handler is connected to) that writes a marker line to the
-  process's stderr, bypassing `logging`, and then raises `RuntimeError`.
+  registers an at-fork hook; in each pool child it connects two `worker_process_init`
+  handlers (the signal patch 0002's handler is connected to), after patch 0002's: the first
+  writes a marker line to the process's stderr, bypassing `logging`, and raises
+  `RuntimeError`; the second writes a second marker the same way (C1). Celery's
+  `Signal.send` calls the receivers in the order they were connected and logs a receiver's
+  exception before it calls the next, so Celery's line, if it comes, comes between the two
+  markers. The check reads the log once the second marker is there.
 - No broker: Celery starts the pool before the consumer (the `Pool` bootstep comes before
   `Consumer`, which is last), so the children run `worker_process_init` without one.
-- On the built image the check passes when the worker's log holds the marker and, from the
-  same pool child, `Signal handler <…> raised: RuntimeError(…)` followed by its traceback.
+- On the built image the check passes when, for a pool child, the worker's log holds the
+  first marker, then `Signal handler <…> raised: RuntimeError(…)` with its traceback, then
+  the second marker.
 - CI runs the same check on `2.4.29-1`,
   `ghcr.io/janwychowaniak/iris-web-2x@sha256:56c58f51e3ccff58cc9822fc69d91faecf0ace53033fb22c786f0ec2a0044374`,
-  as a control: there the marker must appear and the line must not, and the CI step is green
-  only then. The marker shows the handler ran, so the control fails for the expected reason.
+  as a control: there both markers must appear and the line must not come between them, and
+  the CI step is green only then. The markers show that the handler ran and that the point
+  where the line would come has passed, so the control fails for the expected reason.
 - The release workflow runs the check on the built image with the other image checks;
   the control runs in CI only.
 
 ### 3.4 The measurement (Z4, W1)
 
-For each target, on `2.4.29-1` and on the new image, with `IRIS_WORKER` unset, the stock
-2.4.29 database and a RabbitMQ broker:
+For each target, on `2.4.29-1` and on the new image, with `IRIS_WORKER` unset, on a fresh
+stock 2.4.29 database with the upstream compose's broker, `rabbitmq:3-management-alpine`,
+both pinned by digest; the app started as the upstream compose starts it, then the worker
+through `wait-for-iriswebapp.sh`:
 
 - **Where:** in the gunicorn worker process once it has loaded the application, through a
   `gunicorn.conf.py` mounted read-only into `/iriswebapp`, which gunicorn 20.1.0 reads from
   its working directory (hook `post_worker_init`); in a pool child of the worker as it runs
   its first task, through a mounted `sitecustomize.py` that connects a `task_prerun` handler
-  in each pool child.
+  in each pool child, importing nothing new.
 - **What:** the root logger and every logger in `logging.root.manager.loggerDict`: name,
   `disabled`, level, effective level, `propagate`, and each handler's class, level, stream,
-  and its formatter's format and date format.
-- **The task:** the renderer registered and enabled, one IOC update, so one hook task; on the
-  new image, the lines that task adds to the worker's log.
+  filters and formatter (class, format, date format). IRIS names one logger per module
+  instance `iris_interface.IrisModuleInterface_<8 random letters>`; the comparison takes
+  them as one name.
+- **The task:** the renderer registered and enabled, one IOC added and then updated, so one
+  hook task (IRIS's default modules are registered disabled); the lines the update adds to
+  the worker's log.
 
-The probes write to stderr, outside `logging`; none of them is in the image. Results: to be
-filled in, `2.4.29-1` in step 0 or 1, the new image in step 1.
+The probes write the state to a file inside the container and one line to stderr, outside
+`logging`; none of them is in the image. They are handed over in the rounds folder with
+the reply of step 0, with the script that starts the stack and the task (C2).
+
+**Results on `2.4.29-1`** (step 0). Two runs, each on a fresh database, gave the same
+disabled sets, the same digests and the same task lines.
+
+| | gunicorn worker (`iriswebapp`) | pool child at its first task (`iris-worker`) |
+|---|---|---|
+| Loggers, the root included | 203 | 218 |
+| Disabled | 179 | 173 |
+| Root | WARNING; one stderr `StreamHandler`, the format of `alembic.ini` | INFO; Celery's stderr `StreamHandler`, `[%(asctime)s: %(levelname)s/%(processName)s] %(message)s` |
+| sha256 of every property but `disabled` | `622b65f047ffda3ee8fd24abbab2ae59bbaac7f9af5b5f8229e7de82e96153ea` | `1da2e81992f0b533aefaf119560ebac7b5ac0a208002d14bfd0dc08e8c1c2614` |
+
+Enabled in both: the root, `app`, `alembic` and `sqlalchemy.engine` with their children,
+and the loggers created after post-init (in the worker, for example `celery.apps.worker`,
+`celery.beat` and `celery.worker.consumer.*`). Disabled, among those that would write:
+
+- in the gunicorn worker: `gunicorn.error` (INFO, its own stderr handler,
+  `%(asctime)s [%(process)d] [%(levelname)s] %(message)s`, propagation off) and
+  `gunicorn.access` (INFO, no handler: gunicorn runs without an access log), with
+  `gunicorn`, `gunicorn.http` and `gunicorn.http.wsgi`; `engineio.server` and
+  `socketio.server` (ERROR, their own stderr handlers); and, at the root's WARNING,
+  `sqlalchemy` and its children outside `sqlalchemy.engine`, `celery`, `kombu.common`,
+  `kombu.connection`, `amqp`, `urllib3` and `requests`;
+- in the pool child: `celery.app.trace`, `celery.utils.dispatch.signal`,
+  `celery.worker.request`, `celery.worker.control`, `celery.pool`, `celery.bootsteps`,
+  `celery.task` (INFO, Celery's task handler, propagation off), `kombu.connection`,
+  `kombu.common` and three more of kombu's, and `amqp`; and the same library loggers at the
+  root's INFO;
+- in both: `pyasn1` (DEBUG, its own stderr handler, which pyasn1 0.6.3 sets up when it is
+  imported). It writes only once pyasn1's debug flags are set, and no other package in the
+  image sets them.
+
+The lines that the one hook task adds to the worker's log, the probe's own line left out:
+
+```
+[…: INFO/MainProcess] Task app.iris_engine.module_handler.module_handler.task_hook_wrapper[<id>] received
+[…: INFO/ForkPoolWorker-5] Calling module iris_facade_renderer_module for hook on_postload_ioc_update
+[…: INFO/ForkPoolWorker-5] Retrieved server configuration
+[…: INFO/ForkPoolWorker-5] Module has initiated
+[…: INFO/ForkPoolWorker-5] Received on_postload_ioc_update
+[…: INFO/ForkPoolWorker-5] IOC #1: rendered tab 'VT Report'
+```
+
+Nothing from `celery.app.trace`, while the task's state in the result backend is `SUCCESS`.
+
+**On the new image** (step 1): the same measurement; it passes with no logger disabled in
+either target and the two sha256s above.
 
 ## 4. Part B — the renderer's version (Z5)
 
@@ -156,7 +217,8 @@ tests' docstrings stay as on `main`: the tests are not installed.
 
 Each step ends with a `reply-NN.md`; the consumer verifies it and answers.
 
-0. Before the go (W1): the measurement on `2.4.29-1`, into §3.4.
+0. Before the go (W1): the measurement on `2.4.29-1`, into §3.4; its probes to the rounds
+   folder (C2).
 1. After the go: the patch and its checksums, B, the check of §3.3 with its control,
    `VERSION`, the documentation of §5; a local classic build, the CI scripts run locally on
    it, the control on `2.4.29-1`; the measurement on the new image, into §3.4.
