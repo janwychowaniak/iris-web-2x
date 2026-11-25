@@ -22,7 +22,8 @@ revision and the creation time; `org.opencontainers.image.description` stays as 
 IDs: `O` the owner's decisions in the order; `Z` the maintainer's assumptions, held unless
 vetoed; `W` decisions for the owner; `P` gaps in the order, for the consumer; `C` the
 consumer's remarks. Round 01 is the order with `reply-01`, round 02 `query-02` with
-`reply-02`, round 03 `query-03` with `reply-03`, round 04 `query-04` with `reply-04`.
+`reply-02`, round 03 `query-03` with `reply-03`, round 04 `query-04` with `reply-04`, round 05
+`query-05` with `reply-05`.
 
 | ID | Decision | Status | Round |
 |---|---|---|---|
@@ -43,6 +44,7 @@ consumer's remarks. Round 01 is the order with `reply-01`, round 02 `query-02` w
 | C4 | The README's list of checks names `2.4.29-1` as the control's image | agreed | 04 |
 | C5 | The README says where the updater's ERROR at the worker's start comes from (§3.4, §5) | agreed | 04 |
 | C6 | The control's `FAIL` line says how many lines of the exception the log holds | agreed | 04 |
+| O5 | The consumer's K7, K11 and K12 run once, on the published image, with K8–K10; its acceptance of the local build is K2–K6 and K13 | given (owner) | 05 |
 
 ## 3. Part A — the loggers
 
