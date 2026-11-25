@@ -117,9 +117,12 @@ if not children:
 if control:
     logged = [line for line in lines if "iw2x-signal-probe" in line
               and not line.startswith(("iw2x-signal-probe raising ", "iw2x-signal-probe after "))]
-    print(("ok   " if not logged else "FAIL ")
-          + "control: %d pool child(ren) raised in worker_process_init, and the log holds no line of it"
-          % len(children))
+    if logged:
+        print("FAIL control: %d pool child(ren) raised in worker_process_init, and the log holds"
+              " %d line(s) of it" % (len(children), len(logged)))
+    else:
+        print("ok   control: %d pool child(ren) raised in worker_process_init, and the log holds"
+              " no line of it" % len(children))
     sys.exit(1 if logged else 0)
 bad = []
 for name in children:

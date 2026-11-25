@@ -22,7 +22,7 @@ revision and the creation time; `org.opencontainers.image.description` stays as 
 IDs: `O` the owner's decisions in the order; `Z` the maintainer's assumptions, held unless
 vetoed; `W` decisions for the owner; `P` gaps in the order, for the consumer; `C` the
 consumer's remarks. Round 01 is the order with `reply-01`, round 02 `query-02` with
-`reply-02`, round 03 `query-03` with `reply-03`.
+`reply-02`, round 03 `query-03` with `reply-03`, round 04 `query-04` with `reply-04`.
 
 | ID | Decision | Status | Round |
 |---|---|---|---|
@@ -40,6 +40,9 @@ consumer's remarks. Round 01 is the order with `reply-01`, round 02 `query-02` w
 | C2 | The measurement's probes, with how the stack and the task are started, are handed over in the rounds folder with the reply of the step that first uses them (§3.4) | agreed | 02 |
 | O4 | The owner's go on this file for the implementation | given (owner) | 03 |
 | C3 | `scripts/check-iris.sh` and the measurement's `run.sh` remove their containers with their anonymous volumes (`docker rm -v`) | agreed | 03 |
+| C4 | The README's list of checks names `2.4.29-1` as the control's image | agreed | 04 |
+| C5 | The README says where the updater's ERROR at the worker's start comes from (§3.4, §5) | agreed | 04 |
+| C6 | The control's `FAIL` line says how many lines of the exception the log holds | agreed | 04 |
 
 ## 3. Part A — the loggers
 
@@ -233,8 +236,9 @@ tests' docstrings stay as on `main`: the tests are not installed.
 - **README:** the list of what the image adds gains the loggers' fix; "Six files of IRIS
   change" becomes seven; the table gains the row of `app/alembic/env.py` ("the migration's
   logging configuration leaves the loggers that exist enabled", this repository), and a
-  paragraph says what was disabled and why. The list of checks names the signal log and its
-  control. The examples name `2.4.29-2`.
+  paragraph says what was disabled and why, and another the updater's ERROR that the worker's
+  log shows at every start (C5). The list of checks names the signal log and its control on
+  `2.4.29-1` (C4). The examples name `2.4.29-2`.
 - **NOTICE:** "six files" becomes seven, and `app/alembic/env.py` is listed as this
   repository's own change: the loggers that exist when the migration configures logging
   stay enabled.

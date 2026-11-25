@@ -68,6 +68,13 @@ ended and on a signal handler that raised, and, in the gunicorn worker, gunicorn
 log. The call now leaves those loggers enabled; the levels, handlers and formats it sets
 stay as they were.
 
+One ERROR comes with it at every start of the worker, after post-init:
+`Signal handler <function setup_periodic_update_checks at 0x…> raised: TypeError("setup_periodic_update_checks() missing 1 required positional argument: 'self'")`,
+with its traceback. It is IRIS 2.4.29's own fault, hidden until now by the disabled logger:
+`app/iris_engine/updater/updater.py` connects that function to Celery's
+`on_after_finalize` with a signature Celery cannot call, so the daily check for IRIS updates
+is never scheduled at start. The image leaves it as it is.
+
 ## The modules
 
 ### IrisFacadeRenderer 0.2.0
@@ -204,7 +211,7 @@ The Dockerfile builds with the classic builder. Each script below runs in CI
   the stock image;
 - `scripts/check-iris.sh <image>`: IRIS against the stock 2.4.29 database: the modules'
   health, the start line, and the worker's log of the exception that a signal handler
-  raises in a pool child; CI also runs that last check on `2.4.29-2` as a control
+  raises in a pool child; CI also runs that last check on `2.4.29-1` as a control
   (`--control`), where the exception must stay out of the log.
 
 Secret scanning runs as git hooks (`git config core.hooksPath .githooks`, once per clone)
