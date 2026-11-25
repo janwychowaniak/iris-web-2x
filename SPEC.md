@@ -191,8 +191,31 @@ The lines that the one hook task adds to the worker's log, the probe's own line 
 
 Nothing from `celery.app.trace`, while the task's state in the result backend is `SUCCESS`.
 
-**On the new image** (step 1): the same measurement; it passes with no logger disabled in
-either target and the two sha256s above.
+**Results on the new image** (step 1, the build of `c1db458`): no logger disabled in either
+target, of the same 203 and 218, and the same two sha256s as on `2.4.29-1`; only `disabled`
+differs. The hook task adds the lines above and, after them, `celery.app.trace`'s:
+
+```
+[…: INFO/ForkPoolWorker-5] Task app.iris_engine.module_handler.module_handler.task_hook_wrapper[<id>] succeeded in 0.165917765814811s: <iris_interface.IrisInterfaceStatus.IIStatus object at 0x…>
+```
+
+`IIStatus` defines no `__repr__`, so the line carries no data of the module. Beyond the task,
+the app's log is the same as on `2.4.29-1`, and the worker's log gains one record at every
+start, after post-init:
+
+```
+… :: ERROR :: signal :: send :: Signal handler <function setup_periodic_update_checks at 0x…> raised: TypeError("setup_periodic_update_checks() missing 1 required positional argument: 'self'")
+Traceback (most recent call last):
+  File "/opt/venv/lib/python3.9/site-packages/celery/utils/dispatch/signal.py", line 276, in send
+    response = receiver(signal=self, sender=sender, **named)
+TypeError: setup_periodic_update_checks() missing 1 required positional argument: 'self'
+```
+
+That is a fault of IRIS 2.4.29 that the disabled logger hid, not one the change causes:
+`app/iris_engine/updater/updater.py:587` connects `setup_periodic_update_checks(self, **kwargs)`
+to `celery.on_after_finalize`, which calls its receivers with `sender=` as a keyword, so the
+daily update check `iris_auto_check_updates` is never scheduled at start. It is out of scope
+(the order's §6); the order's K7 counts such a line as a finding for a release of its own.
 
 ## 4. Part B — the renderer's version (Z5)
 
