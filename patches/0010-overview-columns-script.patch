@@ -138,12 +138,21 @@
          },
      drawCallback: function () {
              $('.btn-quick-view').off('click').on('click', function() {
-@@ -278,6 +365,27 @@
+@@ -278,6 +365,36 @@
  
  OverviewTable.searchBuilder.container().appendTo($('#table_buttons'));
  
 +/* iris-web-2x: the column control, beside SearchBuilder's button, and the choice it makes. */
 +new $.fn.dataTable.Buttons(OverviewTable, {
++    // The markup of Buttons' Bootstrap 4 styling, which the page's dataTables.buttons.min.css is
++    // written for: the button is a Bootstrap button, and the list opens as a dropdown menu.
++    dom: {
++        button: { className: 'btn btn-sm btn-light' },
++        collection: {
++            tag: 'div', className: 'dropdown-menu',
++            button: { tag: 'a', className: 'dt-button dropdown-item', active: 'active', disabled: 'disabled' }
++        }
++    },
 +    buttons: [{
 +        extend: 'collection', text: '<i class="fas fa-eye-slash"></i>', titleAttr: 'Toggle columns',
 +        className: 'ml-2',

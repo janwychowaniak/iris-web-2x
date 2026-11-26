@@ -320,12 +320,8 @@ class Profile:
     def close_control(self):
         p = self.page
         if p.locator(COLLECTION).is_visible():
-            p.keyboard.press("Escape")
-            if p.locator(COLLECTION).is_visible() and p.locator(".dt-button-background").count():
-                p.locator(".dt-button-background").first.click()
-            if p.locator(COLLECTION).is_visible():
-                p.click("#overviewTableTitle")
-            p.locator(COLLECTION).wait_for(state="hidden")
+            p.keyboard.press("Escape")  # Buttons closes the list, fading it out
+            p.locator(COLLECTION).wait_for(state="hidden", timeout=5000)
 
     def toggle(self, title):
         before = self.shown()
@@ -557,6 +553,10 @@ class Run:
                "Title's clear button left %d rows or cleared Customer's field" % a.count())
         a.filter_field("Customer").locator("i.fa-times-circle").click()
         p.locator("#overview_table thead tr:not(.filters) th").filter(has_text="Title").first.click()
+        try:  # with processing on, DataTables sorts after a timeout of its own
+            p.wait_for_function("() => OverviewTable.order()[0][0] === 3", timeout=5000)
+        except Exception:
+            pass
         order = p.evaluate("() => [OverviewTable.order()[0], OverviewTable.rows({order: 'current',"
                            " page: 'current'}).data().toArray().map(r => r.case_id)]")
         expect(order[0][0] == 3 and order[1] == sorted(order[1]), "sorting by Title gave %s" % order[0])
