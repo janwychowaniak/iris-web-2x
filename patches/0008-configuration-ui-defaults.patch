@@ -1,0 +1,69 @@
+--- a/app/configuration.py
++++ b/app/configuration.py
+@@ -20,6 +20,7 @@
+ import logging as log
+ import os
+ import ssl
++import sys
+ # --------- Configuration ---------
+ # read the private configuration file
+ from datetime import timedelta
+@@ -261,6 +262,48 @@
+     worker_pool_restarts = True
+ 
+ 
++# --------- iris-web-2x: the defaults of the Overview's columns and of the notes editor ---------
++# Read from the environment alone, once per start; iris-web-2x's README describes the variables.
++IW2X_OVERVIEW_COLUMN_IDS = ('outcome', 'case_id', 'severity', 'title', 'customer', 'classification',
++                            'state', 'tags', 'open_since', 'open_date', 'tasks', 'owner')
++IW2X_OVERVIEW_COLUMNS_2_4_29 = ('title', 'customer', 'classification', 'state', 'tags', 'open_since',
++                                'open_date', 'tasks', 'owner')
++
++
++def iw2x_ui_defaults():
++    """The Overview's columns visible by default and whether a note opens with its editor.
++    The process gunicorn runs, which serves the pages, logs them; the Celery worker loads this
++    configuration too and logs nothing of it."""
++    unusable = []
++
++    columns, columns_from = IW2X_OVERVIEW_COLUMNS_2_4_29, '2.4.29'
++    value = os.environ.get('IW2X_OVERVIEW_COLUMNS')
++    if value is not None and value.strip():
++        ids = [i.strip() for i in value.split(',') if i.strip()]
++        unknown = [i for i in ids if i not in IW2X_OVERVIEW_COLUMN_IDS]
++        if unknown or not ids:
++            unusable.append('IW2X_OVERVIEW_COLUMNS=%r cannot be used (%s)'
++                            % (value, 'unknown column %r' % unknown[0] if unknown else 'no column'))
++        else:
++            columns = tuple(i for i in IW2X_OVERVIEW_COLUMN_IDS if i in ids or i == 'title')
++            columns_from = 'IW2X_OVERVIEW_COLUMNS'
++
++    editor, editor_from = 'shown', '2.4.29'
++    value = os.environ.get('IW2X_NOTE_EDITOR')
++    if value is not None and value.strip():
++        if value.strip() in ('shown', 'hidden'):
++            editor, editor_from = value.strip(), 'IW2X_NOTE_EDITOR'
++        else:
++            unusable.append("IW2X_NOTE_EDITOR=%r cannot be used (expected 'shown' or 'hidden')" % value)
++
++    if 'gunicorn' in sys.modules:
++        for line in unusable:
++            log.warning('iris-web-2x: %s; the default of 2.4.29 applies' % line)
++        log.info('iris-web-2x defaults: Overview columns %s (%s); note editor %s (%s)'
++                 % (','.join(columns), columns_from, editor, editor_from))
++    return columns, editor
++
++
+ # --------- APP ---------
+ class Config:
+     # Handled by bumpversion
+@@ -275,6 +318,9 @@
+     MODULES_INTERFACE_MIN_VERSION = '1.1'
+     MODULES_INTERFACE_MAX_VERSION = '1.2.0'
+ 
++    # iris-web-2x: the defaults of the Overview's columns and of the notes editor (above)
++    IW2X_OVERVIEW_COLUMNS, IW2X_NOTE_EDITOR = iw2x_ui_defaults()
++
+     if os.environ.get('IRIS_WORKER') is None:
+         CSRF_ENABLED = True
+ 

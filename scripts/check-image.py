@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """The image checks of CI that need no database: packages, filesystem, labels and
-configuration, and the copy of IRIS's filter the tests use. The image is compared with the
-base its Dockerfile names.
+configuration, the templates of the attribute tab buttons, the versioned names of the patched
+scripts, and the copy of IRIS's filter the tests use. The image is compared with the base its
+Dockerfile names.
 
     check-image.py <image> [--revision <commit>]
 """
@@ -194,6 +195,38 @@ def check_templates(base, image):
     check(same, "the buttons differ from the stock ones by data-target alone, the panes not at all")
 
 
+# The scripts the change patches. A page names each with a "v" (SPEC.md §7): the stock nginx
+# lets a browser keep /static for a year, so a changed script under an unchanged URL would stay
+# unseen after the swap, and a cached one would follow the way back.
+VERSIONED = ("assets/js/iris/overview.js", "assets/js/iris/case.notes.js")
+SCRIPT_REFERENCES = r"""
+import json, pathlib, re, sys
+found = []
+for path in sorted(pathlib.Path("/iriswebapp/app").rglob("*.html")):
+    text = path.read_text(errors="replace")
+    for m in re.finditer(r"assets/js/iris/(?:overview|case\.notes)\.js(\?v=[^\"'\s]+)?", text):
+        found.append([str(path.relative_to("/iriswebapp")), m.group(0)])
+print(json.dumps(found))
+"""
+STOCK_REFERENCES = [["app/blueprints/case/templates/case_notes_v2.html", "assets/js/iris/case.notes.js"],
+                    ["app/blueprints/overview/templates/overview.html", "assets/js/iris/overview.js"]]
+
+
+def check_versioned_scripts(base, image):
+    def references(img):
+        return json.loads(run_in(img, "python3", "-I", "-B", "-", stdin=SCRIPT_REFERENCES.encode()))
+
+    b, i = references(base), references(image)
+    bare = [r for r in i if "?v=" not in r[1]]
+    named = sorted({r[1].split("?")[0] for r in i})
+    check(named == sorted(VERSIONED) and not bare,
+          "no template names overview.js or case.notes.js without a v (%d reference(s))" % len(i),
+          "without one: %s; named: %s" % (bare, named))
+    check(sorted(b) == STOCK_REFERENCES,
+          "control: on the base, the same check finds the two references without a v",
+          "found %s" % b)
+
+
 def check_filter_copy(image):
     copy = (ROOT / "renderer/tests/iris_2429_filter.py").read_text()
     block = copy[copy.index("_ATTR_HTML_ALLOWED_TAGS = ["):]
@@ -211,6 +244,7 @@ def main():
     check_filesystem(base, args.image)
     check_labels_and_config(base, args.image, args.revision)
     check_templates(base, args.image)
+    check_versioned_scripts(base, args.image)
     check_filter_copy(args.image)
     print("%d check(s) failed" % len(failures) if failures else "all checks passed")
     return 1 if failures else 0

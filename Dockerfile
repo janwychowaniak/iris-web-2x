@@ -1,6 +1,7 @@
 # iris-web-2x: the stock DFIR-IRIS 2.4.29 application image plus two upstream worker
-# fixes, fixes of its attribute tab buttons and of its loggers, IrisFacadeRenderer, the
-# IrisWebHooks fork and the image's own version (README.md).
+# fixes, fixes of its attribute tab buttons and of its loggers, the Overview's columns and
+# the notes editor chosen and remembered, IrisFacadeRenderer, the IrisWebHooks fork and the
+# image's own version (README.md).
 # Builds with the classic builder (DOCKER_BUILDKIT=0); scripts/build.sh passes the build
 # arguments.
 

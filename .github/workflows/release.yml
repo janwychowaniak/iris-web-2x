@@ -11,7 +11,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
@@ -47,6 +47,15 @@ jobs:
         run: |
           python3 -I scripts/check-image.py "$IMAGE:$(cat VERSION)" --revision "$GITHUB_SHA"
           scripts/check-iris.sh "$IMAGE:$(cat VERSION)"
+
+      # The control on 2.4.29-2 runs in CI only.
+      - name: The browser test, with the swap from 2.4.29-2 and back, before the push
+        env:
+          PREVIOUS: ghcr.io/janwychowaniak/iris-web-2x@sha256:66d0e876b6384a22aff36e34a2538b1fac2da0b1be76bc74cc25865357fefeeb
+        run: |
+          python3 -m venv "$RUNNER_TEMP/ui"
+          "$RUNNER_TEMP/ui/bin/pip" install --quiet --require-hashes --no-deps -r scripts/check-ui-requirements.txt
+          "$RUNNER_TEMP/ui/bin/python" -I scripts/check-ui.py "$IMAGE:$(cat VERSION)" --old "$PREVIOUS"
 
       # Login only after the build and the checks, so the registry credential exists for the
       # push alone. The step summary is the first record of the digest and the image Id (the

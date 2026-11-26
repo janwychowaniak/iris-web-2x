@@ -3,12 +3,14 @@
 DFIR-IRIS 2.4.29 with two upstream worker fixes backported and two modules built in.
 
 `ghcr.io/janwychowaniak/iris-web-2x:2.4.29-N` is the stock DFIR-IRIS application image,
-`ghcr.io/dfir-iris/iriswebapp_app:v2.4.29`, plus six things and nothing else:
+`ghcr.io/dfir-iris/iriswebapp_app:v2.4.29`, plus seven things and nothing else:
 
 - two fixes for the Celery worker, taken from the IRIS 3.x backend;
 - a fix of 2.4.29's attribute tab buttons, which open nothing under its own Bootstrap;
 - a fix of 2.4.29's start, whose database migration disables the loggers that exist at that
   moment, Celery's and gunicorn's among them;
+- the Overview's columns and a note's editor, shown or hidden by each user and remembered in
+  the browser, with the defaults set by the deployment;
 - the IrisFacadeRenderer module 0.2.0, built from this repository;
 - a fork of the IrisWebHooks module, `1.0.9+jw.2`, in place of the stock 1.0.9;
 - the image's own version, in labels, in a file and in the start log.
@@ -34,7 +36,7 @@ the stock image stay open on 2.4.29:
 
 ## The changes to IRIS
 
-Seven files of IRIS change; each patch is in [`patches/`](patches), and the build checks
+Twelve files of IRIS change; each patch is in [`patches/`](patches), and the build checks
 every file's sha256 before and after patching.
 
 | File, under `/iriswebapp` | Change | Origin |
@@ -44,6 +46,9 @@ every file's sha256 before and after patching.
 | `iris-entrypoint.sh` | the start line (below) | this repository |
 | `app/templates/modals/modal_attributes_nav.html`, `app/blueprints/manage/templates/modal_case_info_from_case.html`, `app/blueprints/manage/templates/modal_add_case.html` | each attribute tab button names its pane in a `data-target` (below) | this repository |
 | `app/alembic/env.py` | its `fileConfig` call passes `disable_existing_loggers=False`, so the loggers that exist when the migration configures logging stay enabled (below) | this repository |
+| `app/configuration.py` | reads `IW2X_OVERVIEW_COLUMNS` and `IW2X_NOTE_EDITOR` at start; the app's start log names the defaults in effect | this repository |
+| `app/blueprints/overview/templates/overview.html`, `app/static/assets/js/iris/overview.js` | the Overview's column control and the choice it makes | this repository |
+| `app/blueprints/case/templates/case_notes_v2.html`, `app/static/assets/js/iris/case.notes.js` | the choice to show or hide a note's editor, one for every note | this repository |
 
 The two worker patches carry upstream's added and removed lines byte for byte, written
 against the 2.4.29 files; CI proves it. The docstring of the second describes the 3.x
@@ -74,6 +79,67 @@ with its traceback. It is IRIS 2.4.29's own fault, hidden until now by the disab
 `app/iris_engine/updater/updater.py` connects that function to Celery's
 `on_after_finalize` with a signature Celery cannot call, so the daily check for IRIS updates
 is never scheduled at start. The image leaves it as it is.
+
+## The Overview's columns and the notes editor
+
+**The Overview.** A button with the column visibility icon, titled `Toggle columns`, beside
+`Add filter`, lists the table's columns but Title, which carries the case's link and its quick
+view and stays shown. Each entry shows or hides its column; the last one, `Default columns`,
+brings back the defaults and forgets the choice. A column shown later comes with its filter
+field; hiding a column empties its field and clears its filter, while SearchBuilder's criteria
+stay as they are. Export, Copy and row selection stay absent, as in 2.4.29.
+
+**The notes editor.** The round button beside `Save note` shows or hides a note's editor, as
+in 2.4.29, and the choice now holds for every note: a note opens with its editor as the user
+last left it, but for a note just created, which opens with it. Hiding the editor while it is
+expanded ends the expansion, so that the rendered view takes the width.
+
+**Where the choices live.** In the browser's storage for the IRIS site
+(`iw2x.overview.columns`, `iw2x.notes.editor`), as IRIS keeps its own. They survive reloads,
+new visits and signing out and in. Another browser or browser profile, another host name or
+port for the same IRIS, a private window once it is closed, and clearing the site's data start
+from the defaults; the users of one browser profile share its choices.
+
+**The defaults.** Two variables of the app set them. With the upstream compose they go into
+`.env`, which the compose passes to the app, and `docker compose up -d` applies a change. A
+choice the user has made takes precedence over them.
+
+| Variable | Value | Unset, empty or blank |
+|---|---|---|
+| `IW2X_OVERVIEW_COLUMNS` | the columns shown by default: identifiers separated by commas, in any order, spaces around them ignored; Title is shown whether listed or not | the columns 2.4.29 shows |
+| `IW2X_NOTE_EDITOR` | `shown` or `hidden` | `shown` |
+
+| Identifier | Column | Shown by 2.4.29 |
+|---|---|---|
+| `outcome` | Outcome | no |
+| `case_id` | Case ID | no |
+| `severity` | Severity | no |
+| `title` | Title | always |
+| `customer` | Customer | yes |
+| `classification` | Classification | yes |
+| `state` | State | yes |
+| `tags` | Tags | yes |
+| `open_since` | Open since | yes |
+| `open_date` | Open date | yes |
+| `tasks` | Tasks | yes |
+| `owner` | Owner | yes |
+
+A value the image cannot use, an identifier outside the table, commas and nothing else, or
+anything but `shown` or `hidden` (letter case included), leaves the default of 2.4.29 for what
+that variable sets. The app's start log names the defaults in effect, after one warning per
+unusable value; the worker loads the same configuration and logs neither:
+
+```
+… :: WARNING :: configuration :: iw2x_ui_defaults :: iris-web-2x: IW2X_NOTE_EDITOR='maybe' cannot be used (expected 'shown' or 'hidden'); the default of 2.4.29 applies
+… :: INFO :: configuration :: iw2x_ui_defaults :: iris-web-2x defaults: Overview columns title,customer,classification,state,tags,open_since,open_date,tasks,owner (2.4.29); note editor shown (2.4.29)
+```
+
+**The swap and the way back.** The stock nginx lets a browser keep `/static` for a year
+without asking again, so the pages name the two patched scripts with a version
+(`overview.js?v=2.4.29-3`, `case.notes.js?v=2.4.29-3`): a browser that used an earlier image
+loads them at once, and after a way back it takes the earlier image's scripts from its cache
+or from that image. The choices stay in the browser, unused by an earlier image, and apply
+again after a later swap.
 
 ## The modules
 
@@ -137,16 +203,17 @@ In its `.env`, set the first and add the second, which `.env.model` does not hav
 
 ```
 APP_IMAGE_NAME=ghcr.io/janwychowaniak/iris-web-2x
-APP_IMAGE_TAG=2.4.29-2
+APP_IMAGE_TAG=2.4.29-3
 ```
 
 and recreate the containers with `docker compose up -d`. nginx and the database stay
-stock.
+stock. The variables of the defaults (above) go into the same `.env`.
 
 **The way back** to the stock image is removing both lines and `docker compose up -d`
 again. Disable the renderer in Manage → Modules first: the stock image does not have it,
 while its registration and hooks stay in the database. The webhooks module goes back to
-the stock 1.0.9.
+the stock 1.0.9. The users' column and editor choices stay in their browsers, unused by the
+stock image.
 
 ## Reading the version
 
@@ -154,7 +221,7 @@ the stock 1.0.9.
   the commit it was built from, `.base.digest` the stock image's digest:
 
   ```bash
-  docker image inspect --format '{{json .Config.Labels}}' ghcr.io/janwychowaniak/iris-web-2x:2.4.29-2
+  docker image inspect --format '{{json .Config.Labels}}' ghcr.io/janwychowaniak/iris-web-2x:2.4.29-3
   ```
 
 - **The start log:** in both the app's and the worker's log, the entrypoint names the image,
@@ -163,7 +230,7 @@ the stock 1.0.9.
   come before it.
 
   ```
-  iris-web-2x 2.4.29-2 (DFIR-IRIS v2.4.29)
+  iris-web-2x 2.4.29-3 (DFIR-IRIS v2.4.29)
   ```
 
 - **The file:** `/usr/share/doc/iris-web-2x/VERSION`.
@@ -175,9 +242,9 @@ Every release on GitHub carries the published image as a file,
 `iris-web-2x-<version>.tar.gz.sha256` beside it. On the target host:
 
 ```bash
-sha256sum -c iris-web-2x-2.4.29-2.tar.gz.sha256
-docker load -i iris-web-2x-2.4.29-2.tar.gz
-docker image inspect --format '{{.Id}}' ghcr.io/janwychowaniak/iris-web-2x:2.4.29-2
+sha256sum -c iris-web-2x-2.4.29-3.tar.gz.sha256
+docker load -i iris-web-2x-2.4.29-3.tar.gz
+docker image inspect --format '{{.Id}}' ghcr.io/janwychowaniak/iris-web-2x:2.4.29-3
 ```
 
 The last line must print the image Id (configuration digest) that
@@ -191,11 +258,11 @@ The same Id can be checked without Docker: the archive's `manifest.json` names t
 configuration blob, and that blob's SHA-256 is the Id.
 
 ```bash
-config=$(tar -xzOf iris-web-2x-2.4.29-2.tar.gz manifest.json | grep -o '"Config":"[^"]*"' | cut -d'"' -f4)
-tar -xzOf iris-web-2x-2.4.29-2.tar.gz "$config" | sha256sum   # the Id, without "sha256:"
+config=$(tar -xzOf iris-web-2x-2.4.29-3.tar.gz manifest.json | grep -o '"Config":"[^"]*"' | cut -d'"' -f4)
+tar -xzOf iris-web-2x-2.4.29-3.tar.gz "$config" | sha256sum   # the Id, without "sha256:"
 ```
 
-The archive loads under `ghcr.io/janwychowaniak/iris-web-2x:2.4.29-2`, the name the two
+The archive loads under `ghcr.io/janwychowaniak/iris-web-2x:2.4.29-3`, the name the two
 compose variables above give, so `docker compose up -d` uses it without a pull.
 
 ## Building and checking
@@ -208,11 +275,18 @@ The Dockerfile builds with the classic builder. Each script below runs in CI
 - `scripts/test-renderer.sh`: the renderer's tests, in the stock base image;
 - `scripts/check-upstream-lines.py`: the worker patches against upstream's commits;
 - `scripts/check-image.py <image>`: packages, filesystem, labels and configuration against
-  the stock image;
+  the stock image, and that no template names a patched script without its version;
 - `scripts/check-iris.sh <image>`: IRIS against the stock 2.4.29 database: the modules'
   health, the start line, and the worker's log of the exception that a signal handler
   raises in a pool child; CI also runs that last check on `2.4.29-1` as a control
-  (`--control`), where the exception must stay out of the log.
+  (`--control`), where the exception must stay out of the log;
+- `scripts/check-ui.py <image> --old <image>`: the Overview's columns and the notes editor in
+  a browser, against the stock 2.4.29 database and nginx, with the swap from `--old` and the
+  way back; CI runs it with `--old` set to `2.4.29-2`, and runs `--control` on `2.4.29-2`,
+  where every check of the new behaviour must fail and every other pass. Its tool, Playwright
+  for Python, is pinned with hashes in `scripts/check-ui-requirements.txt` and installed with
+  the hashes checked into a virtual environment (the script's docstring has the commands); it
+  drives Google Chrome, or the Chromium-family browser `--browser` names.
 
 Secret scanning runs as git hooks (`git config core.hooksPath .githooks`, once per clone)
 and in CI.
@@ -227,6 +301,8 @@ of the 2.x line is a release of its own, `2.4.29-N`.
    base part against IRIS's own version.
 2. `CHANGELOG.md` gets the version's entry: placeholders for the date, the digest, the
    image Id and the Python, the base digest, and the notes, which are the tag message to be.
+   A version that changes a script under `app/static` again gives it a new `v` in every
+   template that names it.
 3. `main` is pushed and CI is green on the commit the tag will name. The release runs the
    same checks on the runner before it publishes, and a tag is never pushed again, so a
    failure after the tag would cost the version.

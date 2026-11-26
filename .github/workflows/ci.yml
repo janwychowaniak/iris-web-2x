@@ -18,9 +18,10 @@ jobs:
   image:
     needs: test
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 90
     env:
       IMAGE: ghcr.io/${{ github.repository }}
+      PREVIOUS: ghcr.io/janwychowaniak/iris-web-2x@sha256:66d0e876b6384a22aff36e34a2538b1fac2da0b1be76bc74cc25865357fefeeb
     steps:
       - uses: actions/checkout@v5
       - name: Classic build, with its checks of the patches, the fork and the version
@@ -33,6 +34,18 @@ jobs:
       # exception must stay out of the log.
       - name: "Control: the signal log on 2.4.29-1"
         run: scripts/check-iris.sh --control ghcr.io/janwychowaniak/iris-web-2x@sha256:56c58f51e3ccff58cc9822fc69d91faecf0ace53033fb22c786f0ec2a0044374
+      # The browser test's tool, its hashes checked, in a virtual environment outside the image.
+      - name: Playwright for the browser test, pinned with hashes
+        run: |
+          python3 -m venv "$RUNNER_TEMP/ui"
+          "$RUNNER_TEMP/ui/bin/pip" install --quiet --require-hashes --no-deps -r scripts/check-ui-requirements.txt
+      - name: The Overview's columns and the notes editor in a browser, with the swap from 2.4.29-2 and back
+        run: |
+          "$RUNNER_TEMP/ui/bin/python" -I scripts/check-ui.py "$IMAGE:$(cat VERSION)" --old "$PREVIOUS"
+      # On 2.4.29-2 every check of the new behaviour must fail and every other must pass.
+      - name: "Control: the browser test on 2.4.29-2"
+        run: |
+          "$RUNNER_TEMP/ui/bin/python" -I scripts/check-ui.py --control "$PREVIOUS"
       # No record to compare with: the image was never pushed. The release runs it against one.
       - name: Archive round trip
         working-directory: ${{ runner.temp }}

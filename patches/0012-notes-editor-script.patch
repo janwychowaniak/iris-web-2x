@@ -1,0 +1,81 @@
+--- a/app/static/assets/js/iris/case.notes.js
++++ b/app/static/assets/js/iris/case.notes.js
+@@ -369,7 +369,7 @@
+ }
+ 
+ /* Fetch the edit modal with content from server */
+-async function note_detail(id) {
++async function note_detail(id, created) {
+ 
+     get_request_api('/case/notes/' + id)
+     .done((data) => {
+@@ -428,6 +428,8 @@
+             collaborator_socket.emit('ping-note', { 'channel': 'case-' + get_caseid() + '-notes', 'note_id': note_id });
+ 
+             toggleNoteEditor(true);
++            // iris-web-2x: the editor as the user last left it; a note just created opens with it
++            iw2x_note_editor_show(created === true || iw2x_note_editor_choice());
+ 
+             $('.note').removeClass('note-highlight');
+             $('#note-' + id).addClass('note-highlight');
+@@ -594,16 +596,50 @@
+ 
+ /* Span for note edition */
+ function edit_innote() {
++    // iris-web-2x: the round button's choice holds for every note, remembered in the browser
++    let show = $('#container_note_content').css('display') === 'none';
++    iw2x_note_editor_show(show);
++    try {
++        window.localStorage.setItem(IW2X_NOTE_EDITOR_KEY, show ? 'shown' : 'hidden');
++    } catch (e) { }
++}
++
++const IW2X_NOTE_EDITOR_KEY = 'iw2x.notes.editor';
++
++/* iris-web-2x: shows or hides the editor as edit_innote() did. Hiding it while it is expanded
++   first ends the expansion, so that the rendered view takes the width the editor leaves. */
++function iw2x_note_editor_show(show) {
++    if (!show && $('#ctrd_notesum').css('display') === 'none') {
++        toggle_max_editor();
++    }
++    if (($('#container_note_content').css('display') !== 'none') === show) {
++        return;
++    }
+     $('#container_note_content').toggle();
+-    if ($('#container_note_content').is(':visible')) {
++    if (show) {
+         $('#notes_edition_btn').show(100);
+         $('#ctrd_notesum').removeClass('col-md-11 col-lg-11 ml-4').addClass('col-md-6 col-lg-6');
++        if (note_editor) {
++            note_editor.resize();
++        }
+     } else {
+         $('#notes_edition_btn').hide(100);
+         $('#ctrd_notesum').removeClass('col-md-6 col-lg-6').addClass('col-md-11 col-lg-11 ml-4');
+     }
+ }
+ 
++/* iris-web-2x: the editor of a note opened now: the user's choice, else the page's default. */
++function iw2x_note_editor_choice() {
++    let stored = null;
++    try {
++        stored = window.localStorage.getItem(IW2X_NOTE_EDITOR_KEY);
++    } catch (e) { }
++    if (stored === 'shown' || stored === 'hidden') {
++        return stored === 'shown';
++    }
++    return $('#currentNoteContent').attr('data-iw2x-note-editor') !== 'hidden';
++}
++
+ async function load_directories() {
+     return get_request_api('/case/notes/directories/filter')
+         .done((data) => {
+@@ -659,7 +695,7 @@
+     post_request_api('/case/notes/add', JSON.stringify(data))
+     .done((data) => {
+         if (notify_auto_api(data, true)) {
+-            note_detail(data.data.note_id);
++            note_detail(data.data.note_id, true);
+             load_directories().then(function() {
+                 $('.note').removeClass('note-highlight');
+                 $('#note-' + data.data.note_id).addClass('note-highlight');

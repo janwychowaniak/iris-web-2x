@@ -28,7 +28,7 @@ keys and values but for the version, the revision and the creation time;
 IDs: `O` the owner's decisions in the order; `Z` the maintainer's assumptions, held unless
 vetoed; `W` decisions for the owner; `P` gaps in the order, for the consumer. Round 01 is
 the order with `reply-01`, round 02 `query-02` with `reply-02`, round 03 `query-03` with
-`reply-03`.
+`reply-03`, round 04 `query-04` with `reply-04`.
 
 | ID | Decision | Status | Round |
 |---|---|---|---|
@@ -45,6 +45,11 @@ the order with `reply-01`, round 02 `query-02` with `reply-02`, round 03 `query-
 | Z10 | Steps as in §11: the browser test and its control first, then the change | agreed | 02 |
 | W1 | The browser test's tool: Playwright for Python, pinned with hashes, outside the image (§9.2) | agreed (owner) | 02 |
 | O5 | The owner's go on this file for the implementation | given (owner) | 03 |
+| C1 | A local run installs the browser test's tool as CI does, into a virtual environment with the hashes checked (§9.2) | agreed | 04 |
+| C2 | T2 shows the disk cache: nginx logs both scripts on the first loads, the browser restarts on its profile, and the second loads ask for neither (§9.2) | agreed | 04 |
+| C3 | T13's value leaves Title out; T12, T13 and T15 count the start log's lines: one line of the defaults, one warning per unusable value (§9.2) | agreed | 04 |
+| C4 | T13 also checks a profile that pressed `Default columns`: it gets the variables' defaults (§9.2) | agreed | 04 |
+| C5 | T14 checks the first profile's choices before the way back, so that T16 means something; T6 reads a hidden column's field once the column is shown again (§9.2) | agreed | 04 |
 
 ## 3. What IRIS 2.4.29 does
 
@@ -263,40 +268,42 @@ finds the two references without one, and that is its control.
   `iw2x-ui-<pid>-*` and removed with their volumes. Cases and notes are created through
   IRIS's API with the administrator's key.
 - **Browser.** Headless Google Chrome as on the runner, or the Chromium-family browser
-  `--browser` names, with persistent profiles in a temporary directory. The run's
+  `--browser` names, with profiles kept on disk in a temporary directory. The run's
   certificate is accepted by its key (`--ignore-certificate-errors-spki-list`), so the
-  browser caches as for a trusted site; Chrome caches nothing loaded past an ignored
-  certificate error. Driven by Playwright for Python, 1.65.2 with greenlet 3.5.6, which
-  `scripts/check-ui-requirements.txt` pins with hashes; CI installs it into a virtual
-  environment on the runner, and a local run takes it with `uv run --with-requirements`.
+  browser caches as for a trusted site; Chrome keeps nothing on disk that it loads past an
+  ignored certificate error. Driven by Playwright for Python, 1.65.2 with greenlet 3.5.6,
+  which `scripts/check-ui-requirements.txt` pins with hashes. CI installs it into a virtual
+  environment with `pip install --require-hashes`, and a local run installs it the same way
+  (C1); `uv run --with-requirements` would not check the hashes.
 - **Checks.** Each prints `ok` or `FAIL`, tagged `[new]`, which holds only with the change,
   or `[same]`, which holds on both images.
 
   | # | | Check |
   |---|---|---|
   | T1 | same | With no variable and no choice, the Overview shows the columns of 2.4.29 and a note opens with its editor |
-  | T2 | same | A second load of the Overview and of the notes page takes their scripts from the browser's cache: nginx logs the pages and not the scripts |
+  | T2 | same | nginx logs both scripts on the first loads of the Overview and the notes page; after the browser restarts on the same profile, the second loads ask nginx for the pages and for neither script (C2) |
   | T3 | new | The Overview's control lists the eleven columns but Title, each marked as shown or hidden |
   | T4 | new | Outcome shown and Owner hidden through the control stay so after a reload, in a new tab, and after signing out and in |
-  | T5 | new | `Default columns` brings back the defaults, and a reload keeps them |
-  | T6 | new | A column shown later has its filter field, which filters its own column, and its clear button clears that field alone; hiding a column whose field filters empties the field and brings back the rows it hid |
+  | T5 | new | `Default columns` brings back the defaults, and a reload keeps them; a second profile makes a choice and presses `Default columns`, which T13 tells apart from keeping a choice (C4) |
+  | T6 | new | A column shown later has its filter field, which filters its own column, and its clear button clears that field alone; hiding a column whose field filters brings back the rows it hid, and shown again the column's field is empty (C5) |
   | T7 | same | The default columns' filter fields filter and clear their own columns; sorting, paging, SearchBuilder's `Add filter`, the switch to all cases and the quick view work; a window narrowed after the page loads gives a details row that lists every column (a page loaded into a narrow window scrolls its table instead, in 2.4.29 as well); there is no Export, no Copy and no row selection |
   | T8 | new | The editor hidden on one note stays hidden on another note, after a reload, and after signing out and in; shown again, likewise |
   | T9 | new | With the editor hidden by choice, a created note opens with its editor, and the next note opened takes the choice again |
   | T10 | new | With the editor expanded, hiding it leaves the rendered view shown, across the width |
   | T11 | same | With the editor shown, typing saves the note; a second session on the note, with its editor hidden, renders the first session's change; the note's history lists the revision |
-  | T12 | new | With no variable set, the app's start log names the defaults of 2.4.29 |
-  | T13 | new | With `IW2X_OVERVIEW_COLUMNS=title,case_id,severity,owner` and `IW2X_NOTE_EDITOR=hidden`, a profile without a choice gets them, a profile with one keeps it, and the start log names them |
-  | T14 | new | With `IW2X_OVERVIEW_COLUMNS=title,bogus` and `IW2X_NOTE_EDITOR=maybe`, both pages show the defaults of 2.4.29, and the start log has the two warnings and the line |
-  | T15 | same | After the way back to `--old`, in the profile used before it: no control, the columns and the editor of 2.4.29, the variables of T13 without effect |
+  | T12 | new | With no variable set, the app's start log has one line of the defaults, those of 2.4.29, and no warning (C3) |
+  | T13 | new | With `IW2X_OVERVIEW_COLUMNS=case_id,severity,owner`, Title left out, and `IW2X_NOTE_EDITOR=hidden`: a profile without a choice and the profile that pressed `Default columns` get them, the profile with a choice keeps it, and the start log has one line, naming them, and no warning (C3, C4) |
+  | T14 | new | The first profile chooses Outcome shown and the editor hidden, and both hold after a reload: the choices T16 needs (C5) |
+  | T15 | new | With `IW2X_OVERVIEW_COLUMNS=title,bogus` and `IW2X_NOTE_EDITOR=maybe`, both pages show the defaults of 2.4.29, and the start log has exactly the two warnings and one line of the defaults (C3) |
+  | T16 | same | After the way back to `--old`, in the first profile: no control, the columns and the editor of 2.4.29, the variables of T13 without effect |
 
-- **Order.** The app first runs `--old`, where one profile loads both pages and T2 runs.
-  Then the image under test, with no variable: in that same profile, which keeps its cache
-  and its storage, T1 and T3–T11 run, so they also show §7's swap, and T12 reads the log.
-  Then with the variables of T13, then with those of T14, each with a profile of its own
-  beside the first; then `--old` again for T15, with the variables of T13 still set, once the
-  first profile has chosen what 2.4.29 shows nothing of: Outcome shown, the editor hidden. nginx
-  restarts after each change of the app, since it resolves the app's name once.
+- **Order.** The app first runs `--old`, where the first profile loads both pages, restarts
+  and loads them again (T2). Then the image under test, with no variable: in that same
+  profile, which keeps its cache and its storage, T1 and T3–T11 run, so they also show §7's
+  swap, with a second profile for T5 and T11, and T12 reads the log. Then the variables of
+  T13, with a third profile beside the first two (T13, T14); then those of T15, with a profile
+  of its own; then `--old` again for T16, with the variables of T13 still set. nginx restarts
+  after each change of the app, since it resolves the app's name once.
 - **Result.** On the image under test every check passes. With `--control` the image is
   both the image under test and `--old`, and the run passes when every `[new]` check fails
   and every `[same]` check passes.

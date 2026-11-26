@@ -15,6 +15,32 @@ The image Id is what a host compares after `docker load` of a release file. On
 Docker's default `overlay2` image store, it is the digest of the image's
 configuration, which the archive carries byte for byte (see the README).
 
+## 2.4.29-3 — (pending: the date of the tag)
+
+`ghcr.io/janwychowaniak/iris-web-2x@sha256:` (pending: from the release
+workflow's step summary)
+
+Image Id (configuration digest) `sha256:` (pending), after a pull and after
+`docker load` of the release file alike. Python (pending). Base
+`ghcr.io/dfir-iris/iriswebapp_app@sha256:d7d23026bdde593278075821d3abc8649fe28d618d5784cc9875bd7a3d05699b`.
+
+DFIR-IRIS 2.4.29 (ghcr.io/dfir-iris/iriswebapp_app@sha256:d7d23026bdde593278075821d3abc8649fe28d618d5784cc9875bd7a3d05699b) with:
+- the Celery worker's pool children drop the database session and connections inherited
+  from their parent: iris-backend 294ed4a1 and the tasks.py change of 9098c754;
+- the loggers that exist when IRIS's database migration configures logging at start stay
+  enabled, in the application and in the worker: among them Celery's, which log how each
+  task ended and the exception a signal handler raised;
+- IrisFacadeRenderer 0.2.0 built in: state by badge classes, ENVELOPE.md v1 only,
+  an unrecognised value shown as "?" without stopping the other tabs;
+- IrisWebHooks 1.0.9+jw.2 (fork) in place of 1.0.9;
+- the attribute tab buttons of IRIS's modals open their panes under its Bootstrap 4.6.2,
+  whatever the tab's name;
+- the Overview's columns, shown or hidden by each user and remembered in the browser, with
+  the defaults set by IW2X_OVERVIEW_COLUMNS;
+- a note's editor, shown or hidden as the user last left it and remembered in the browser,
+  with the default set by IW2X_NOTE_EDITOR;
+- the image version in labels, in /usr/share/doc/iris-web-2x/VERSION and in the start log.
+
 ## 2.4.29-2 — 2026-11-25
 
 `ghcr.io/janwychowaniak/iris-web-2x@sha256:66d0e876b6384a22aff36e34a2538b1fac2da0b1be76bc74cc25865357fefeeb`

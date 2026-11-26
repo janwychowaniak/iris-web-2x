@@ -6,17 +6,23 @@
 
 IRIS runs from the image's entrypoint against the stock 2.4.29 database, behind the stock
 2.4.29 nginx with a certificate made for the run. A headless Chromium-family browser,
-driven by Playwright, uses it through browser profiles that live for the whole run. The app
-starts as --old, where the first profile loads the Overview and a note; it is then swapped
-for <image>, restarted with the variables of T13 and then of T14, and swapped back to
---old. Each check prints "ok" or "FAIL", tagged [new], which holds only with the change, or
-[same], which holds on both images. With --control, <image> is also --old, and the run
-passes when every [new] check fails and every [same] check passes.
+driven by Playwright, uses it through browser profiles kept on disk for the whole run. The
+app starts as --old, where the first profile loads the Overview and a note, restarts and
+loads them again; the app is then swapped for <image>, restarted with the variables of T13
+and then of T15, and swapped back to --old. Each check prints "ok" or "FAIL", tagged [new],
+which holds only with the change, or [same], which holds on both images. With --control,
+<image> is also --old, and the run passes when every [new] check fails and every [same]
+check passes.
 
 The browser is Google Chrome, Playwright's "chrome" channel, unless --browser names another
 Chromium-family browser. It accepts the run's certificate by its key
-(--ignore-certificate-errors-spki-list), so it caches as for a trusted site: Chrome caches
-nothing it loads past an ignored certificate error.
+(--ignore-certificate-errors-spki-list), so it caches as for a trusted site: Chrome keeps
+nothing on disk that it loads past an ignored certificate error. The tool is installed with
+its hashes checked, into a virtual environment, as CI does:
+
+    python3 -m venv <dir>
+    <dir>/bin/pip install --require-hashes --no-deps -r scripts/check-ui-requirements.txt
+    <dir>/bin/python -I scripts/check-ui.py ...
 
 Every secret is generated here, kept in a file only this run reads, masked in the GitHub
 Actions log, and never printed: output that may carry one is redacted first. Containers and
@@ -59,9 +65,10 @@ TITLES = [title for _, title in COLUMNS]
 TOGGLED = [t for t in TITLES if t != "Title"]
 STOCK = TITLES[3:]  # the columns 2.4.29 shows
 
-T13_ENV = {"IW2X_OVERVIEW_COLUMNS": "title,case_id,severity,owner", "IW2X_NOTE_EDITOR": "hidden"}
+# T13 leaves Title out, as a deployment may, since Title is shown anyway; T15 lists it.
+T13_ENV = {"IW2X_OVERVIEW_COLUMNS": "case_id,severity,owner", "IW2X_NOTE_EDITOR": "hidden"}
 T13_SHOWN = ["Case ID", "Severity", "Title", "Owner"]
-T14_ENV = {"IW2X_OVERVIEW_COLUMNS": "title,bogus", "IW2X_NOTE_EDITOR": "maybe"}
+T15_ENV = {"IW2X_OVERVIEW_COLUMNS": "title,bogus", "IW2X_NOTE_EDITOR": "maybe"}
 LINE_STOCK = ("iris-web-2x defaults: Overview columns title,customer,classification,state,tags,"
               "open_since,open_date,tasks,owner (2.4.29); note editor shown (2.4.29)")
 LINE_T13 = ("iris-web-2x defaults: Overview columns case_id,severity,title,owner "
@@ -229,11 +236,16 @@ class Stack:
 
 
 class Profile:
-    """One browser profile, signed in as the administrator, for the whole run."""
+    """One browser profile on disk, signed in as the administrator, for the whole run."""
 
     def __init__(self, run, name):
-        self.run = run
-        kwargs = dict(user_data_dir=str(run.work / ("profile-" + name)), headless=True,
+        self.run, self.name = run, name
+        self._launch()
+        self.login()
+
+    def _launch(self):
+        run = self.run
+        kwargs = dict(user_data_dir=str(run.work / ("profile-" + self.name)), headless=True,
                       args=["--ignore-certificate-errors-spki-list=" + run.stack.spki],
                       viewport={"width": 1920, "height": 1080}, base_url=run.stack.base)
         if run.args.browser:
@@ -243,7 +255,11 @@ class Profile:
         self.ctx = run.pw.chromium.launch_persistent_context(**kwargs)
         self.ctx.set_default_timeout(20000)
         self.page = self.ctx.pages[0] if self.ctx.pages else self.ctx.new_page()
-        self.login()
+
+    def restart(self):
+        """The browser closes and starts again on the same profile, with what it keeps on disk."""
+        self.ctx.close()
+        self._launch()
 
     def login(self):
         p = self.page
@@ -263,13 +279,13 @@ class Profile:
             p.evaluate("document.getElementById('logout-form').submit()")
         p.wait_for_url("**/login**")
 
-    # The Overview
-
     def goto(self, page, url):
         page.goto(url)
-        if "/login" in page.url:  # a session the app no longer knows: sign in as a user would
+        if "/login" in page.url:  # a session the browser no longer has: sign in as a user would
             self.login()
             page.goto(url)
+
+    # The Overview
 
     def overview(self, page=None):
         p = page or self.page
@@ -318,6 +334,12 @@ class Profile:
         self.page.wait_for_function("b => Array.from(document.querySelectorAll("
                                     "'#overview_table thead tr:not(.filters) th')).length"
                                     " !== b", arg=len(before))
+        self.close_control()
+
+    def default_columns(self):
+        self.open_control()
+        self.page.locator(COLLECTION + " .dt-button").filter(has_text="Default columns").first.click()
+        self.page.wait_for_timeout(300)
         self.close_control()
 
     def filter_field(self, title):
@@ -402,14 +424,34 @@ class Run:
             "note_content": "# iw2x note %d\n\nThe text of note %d." % (n, n)})["note_id"]
             for n in (1, 2))
 
-    def log_has(self, level, message):
-        return any(" :: %s :: " % level in line and line.endswith(" :: " + message)
-                   for line in self.stack.app_log().splitlines())
+    def start_lines(self):
+        """The app's lines of the defaults and its warnings, each as (level, message)."""
+        lines = []
+        for line in self.stack.app_log().splitlines():
+            parts = line.split(" :: ", 4)
+            if len(parts) == 5 and parts[4].startswith("iris-web-2x"):
+                lines.append((parts[1], parts[4]))
+        return ([l for l in lines if l[1].startswith("iris-web-2x defaults: ")],
+                sorted(l for l in lines if l[1].startswith("iris-web-2x: ")))
 
-    # Phase 1: --old, the first profile loads both pages; T2.
+    def expect_start_lines(self, line, warnings):
+        defaults, found = self.start_lines()
+        expect(defaults == [("INFO", line)], "the start log has %d line(s) of the defaults%s"
+               % (len(defaults), ", not this one: " + defaults[0][1] if len(defaults) == 1 else ""))
+        want = sorted(("WARNING", w) for w in warnings)
+        expect(found == want, ("the start log has %d warning(s), not %d" % (len(found), len(want)))
+               if len(found) != len(want) else
+               "the start log's warnings differ: %s" % [m for _, m in found])
+
+    # Phase 1: --old. The first profile has loaded both pages; it restarts and loads them again.
 
     def t2(self):
         a, stack = self.a, self.stack
+        served = sorted({s for l in stack.access_log() for s in SCRIPTS
+                         if '"GET %s' % s in l and '" 200 ' in l})
+        expect(served == sorted(SCRIPTS), "nginx logged %s on the first loads, not both scripts"
+               % (served or "none"))
+        a.restart()
         mark = len(stack.access_log())
         a.overview()
         a.notes(self.note1)
@@ -417,7 +459,7 @@ class Run:
         pages = [l for l in lines if '"GET %s ' % OVERVIEW in l or '"GET %s' % NOTES in l]
         asked = sorted({s for l in lines for s in SCRIPTS if '"GET %s' % s in l})
         expect(len(pages) >= 2, "nginx logged no second load of the pages")
-        expect(not asked, "the browser asked nginx again for %s" % ", ".join(asked))
+        expect(not asked, "after the restart the browser asked nginx again for %s" % ", ".join(asked))
 
     # Phase 2: the image under test, no variable.
 
@@ -460,15 +502,17 @@ class Run:
         expect(a.shown() == want, "after signing out and in the Overview shows %s" % a.shown())
 
     def t5(self):
-        a = self.a
+        a, d = self.a, self.d
         a.overview()
-        a.open_control()
-        a.page.locator(COLLECTION + " .dt-button").filter(has_text="Default columns").first.click()
-        a.page.wait_for_timeout(300)
-        a.close_control()
+        a.default_columns()
         expect(a.shown() == STOCK, "Default columns shows %s" % a.shown())
         a.overview()
         expect(a.shown() == STOCK, "after a reload the Overview shows %s" % a.shown())
+        # A choice made and then forgotten, which T13 tells apart from a choice kept.
+        d.overview()
+        d.toggle("Owner")
+        d.default_columns()
+        expect(d.shown() == STOCK, "in a second profile Default columns shows %s" % d.shown())
 
     def t6(self):
         a = self.a
@@ -493,6 +537,10 @@ class Run:
         search = a.page.evaluate("() => OverviewTable.column(0).search()")
         expect(search == "" and a.count() == everything,
                "hiding it keeps its filter (%d of %d rows)" % (a.count(), everything))
+        a.toggle("Outcome")
+        field = a.filter_field("Outcome").locator("input").input_value()
+        a.toggle("Outcome")
+        expect(field == "", "shown again, its field holds %r" % field)
 
     def t7(self):
         a = self.a
@@ -626,58 +674,57 @@ class Run:
         expect(revisions >= 2, "the note's history lists %d revision(s)" % revisions)
 
     def t12(self):
-        expect(self.log_has("INFO", LINE_STOCK), "the app's start log does not name the defaults")
+        self.expect_start_lines(LINE_STOCK, [])
 
     # Phase 3: the variables of T13.
 
     def t13(self):
-        b, a = self.b, self.a
+        b, d, a = self.b, self.d, self.a
         b.overview()
         expect(b.shown() == T13_SHOWN, "a profile without a choice gets %s" % b.shown())
         b.notes(self.note1)
         expect(not b.editor(), "a profile without a choice gets the editor shown")
+        d.overview()
+        expect(d.shown() == T13_SHOWN, "the profile that pressed Default columns gets %s" % d.shown())
         a.overview()
         expect(a.shown() == STOCK, "the profile with a choice gets %s" % a.shown())
         a.notes(self.note1)
         expect(a.editor(), "the profile with a choice gets the editor hidden")
-        expect(self.log_has("INFO", LINE_T13), "the app's start log does not name them")
-
-    # Phase 4: the variables of T14.
+        self.expect_start_lines(LINE_T13, [])
 
     def t14(self):
+        """Choices that 2.4.29 shows nothing of, so that T16 means something."""
+        a = self.a
+        want = [t for t in TITLES if t == "Outcome" or t in STOCK]
+        a.overview()
+        a.toggle("Outcome")
+        a.notes(self.note1)
+        a.plain_layout()
+        a.round_button()
+        a.overview()
+        expect(a.shown() == want, "after a reload the Overview shows %s" % a.shown())
+        a.notes(self.note1)
+        expect(not a.editor(), "after a reload a note opens with its editor")
+
+    # Phase 4: the variables of T15.
+
+    def t15(self):
         c = self.c
         c.overview()
         expect(c.shown() == STOCK, "the Overview shows %s" % c.shown())
         c.notes(self.note1)
         expect(c.editor(), "a note opens with its editor hidden")
-        missing = [m for level, m in (("WARNING", WARN_COLUMNS), ("WARNING", WARN_EDITOR),
-                                      ("INFO", LINE_STOCK)) if not self.log_has(level, m)]
-        expect(not missing, "the start log lacks %d of its 3 lines" % len(missing))
+        self.expect_start_lines(LINE_STOCK, [WARN_COLUMNS, WARN_EDITOR])
 
     # Phase 5: back to --old, with the variables of T13.
 
-    def t15(self):
+    def t16(self):
         a = self.a
         a.overview()
         expect(not a.has_control(3000), "the Overview has the control")
         expect(a.shown() == STOCK, "the Overview shows %s" % a.shown())
         a.notes(self.note1)
         expect(a.editor(), "a note opens with its editor hidden")
-
-    def prepare_way_back(self):
-        """Choices that 2.4.29 shows nothing of: Outcome shown, the editor hidden."""
-        a = self.a
-        try:
-            a.overview()
-            a.toggle("Outcome")
-        except Exception:
-            pass
-        try:
-            a.notes(self.note1)
-            a.plain_layout()
-            a.round_button()
-        except Exception:
-            pass
 
     def main(self):
         stack = self.stack
@@ -687,40 +734,40 @@ class Run:
         self.a = Profile(self, "a")
         self.a.overview()
         self.a.notes(self.note1)
-        self.check("T2", "same", "a second load takes the pages' scripts from the browser's cache", self.t2)
+        self.check("T2", "same", "the first loads fetch both scripts; after a restart, the disk cache serves them", self.t2)
 
         print("-- swap to %s, no variable" % self.image, flush=True)
         stack.swap(self.image)
         self.check("T1", "same", "no variable, no choice: the columns of 2.4.29, a note with its editor", self.t1)
         self.check("T3", "new", "the control lists the eleven columns but Title, marked as shown", self.t3)
         self.check("T4", "new", "a choice stays after a reload, in a new tab, after signing out and in", self.t4)
+        self.d = Profile(self, "d")
         self.check("T5", "new", "Default columns brings back the defaults, and a reload keeps them", self.t5)
-        self.check("T6", "new", "a column shown later has its own filter field; hiding it clears it", self.t6)
+        self.check("T6", "new", "a column shown later has its own filter field; hiding it empties it", self.t6)
         self.check("T7", "same", "filters, sorting, paging, SearchBuilder, all cases, quick view, details row", self.t7)
         self.check("T8", "new", "the editor's choice holds for another note, a reload, signing out and in", self.t8)
         self.check("T9", "new", "a created note opens with its editor; the next note takes the choice", self.t9)
-        self.d = Profile(self, "d")
         self.check("T10", "new", "hiding the expanded editor leaves the view shown, across the width", self.t10)
         self.check("T11", "same", "saving, a second session rendering the change, the note's history", self.t11)
-        self.check("T12", "new", "the app's start log names the defaults of 2.4.29", self.t12)
-        self.d.close()
+        self.check("T12", "new", "the start log names the defaults of 2.4.29, once, with no warning", self.t12)
 
         print("-- %s with %s" % (self.image, " ".join("%s=%s" % kv for kv in T13_ENV.items())), flush=True)
         stack.swap(self.image, T13_ENV)
         self.b = Profile(self, "b")
-        self.check("T13", "new", "the variables set the defaults; a choice keeps; the start log names them", self.t13)
-        self.prepare_way_back()
+        self.check("T13", "new", "the variables set the defaults, also after Default columns; a choice keeps", self.t13)
+        self.check("T14", "new", "before the way back the first profile keeps Outcome shown, the editor hidden", self.t14)
         self.b.close()
+        self.d.close()
 
-        print("-- %s with %s" % (self.image, " ".join("%s=%s" % kv for kv in T14_ENV.items())), flush=True)
-        stack.swap(self.image, T14_ENV)
+        print("-- %s with %s" % (self.image, " ".join("%s=%s" % kv for kv in T15_ENV.items())), flush=True)
+        stack.swap(self.image, T15_ENV)
         self.c = Profile(self, "c")
-        self.check("T14", "new", "unusable values: the defaults of 2.4.29, two warnings and the line", self.t14)
+        self.check("T15", "new", "unusable values: the defaults of 2.4.29, exactly two warnings and the line", self.t15)
         self.c.close()
 
         print("-- back to %s, still with the variables of T13" % self.old, flush=True)
         stack.swap(self.old, T13_ENV)
-        self.check("T15", "same", "after the way back: no control, the columns and editor of 2.4.29", self.t15)
+        self.check("T16", "same", "after the way back: no control, the columns and editor of 2.4.29", self.t16)
         self.a.close()
         return self.verdict()
 

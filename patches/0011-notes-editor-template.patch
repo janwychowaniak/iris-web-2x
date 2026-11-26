@@ -1,0 +1,21 @@
+--- a/app/blueprints/case/templates/case_notes_v2.html
++++ b/app/blueprints/case/templates/case_notes_v2.html
+@@ -55,7 +55,7 @@
+ 
+ 					</div>
+ 				</div>
+-				<div class="page-content note-content" id="currentNoteContent" style="display: none;">
++				<div class="page-content note-content" id="currentNoteContent" style="display: none;" data-iw2x-note-editor="{{ config['IW2X_NOTE_EDITOR'] }}">
+ 					<div class="mt-2 ml-2 mr-2 d-lg-flex d-block">
+ 						<div class="col">
+ 							<h4 class="page-title mb-0" id="currentNoteTitle"></h4>
+@@ -232,7 +232,7 @@
+ {% include 'includes/footer_case.html' %}
+ <script src="/static/assets/js/plugin/sortable/sortable.js "></script>
+ <script src="/static/assets/js/core/socket.io.js"></script>
+-<script src="/static/assets/js/iris/case.notes.js "></script>
++<script src="/static/assets/js/iris/case.notes.js?v=2.4.29-3"></script>
+ 
+ 
+ {% endblock javascripts %}
+\ No newline at end of file
