@@ -65,8 +65,9 @@ TITLES = [title for _, title in COLUMNS]
 TOGGLED = [t for t in TITLES if t != "Title"]
 STOCK = TITLES[3:]  # the columns 2.4.29 shows
 
-# T13 leaves Title out, as a deployment may, since Title is shown anyway; T15 lists it.
-T13_ENV = {"IW2X_OVERVIEW_COLUMNS": "case_id,severity,owner", "IW2X_NOTE_EDITOR": "hidden"}
+# T13 leaves Title out, as a deployment may, since Title is shown anyway, and lists the
+# columns out of the table's order, which the defaults keep; T15 lists Title.
+T13_ENV = {"IW2X_OVERVIEW_COLUMNS": "owner,severity,case_id", "IW2X_NOTE_EDITOR": "hidden"}
 T13_SHOWN = ["Case ID", "Severity", "Title", "Owner"]
 T15_ENV = {"IW2X_OVERVIEW_COLUMNS": "title,bogus", "IW2X_NOTE_EDITOR": "maybe"}
 LINE_STOCK = ("iris-web-2x defaults: Overview columns title,customer,classification,state,tags,"

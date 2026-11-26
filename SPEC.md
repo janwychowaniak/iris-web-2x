@@ -28,7 +28,7 @@ keys and values but for the version, the revision and the creation time;
 IDs: `O` the owner's decisions in the order; `Z` the maintainer's assumptions, held unless
 vetoed; `W` decisions for the owner; `P` gaps in the order, for the consumer. Round 01 is
 the order with `reply-01`, round 02 `query-02` with `reply-02`, round 03 `query-03` with
-`reply-03`, round 04 `query-04` with `reply-04`.
+`reply-03`, round 04 `query-04` with `reply-04`, round 05 `query-05` with `reply-05`.
 
 | ID | Decision | Status | Round |
 |---|---|---|---|
@@ -50,7 +50,8 @@ the order with `reply-01`, round 02 `query-02` with `reply-02`, round 03 `query-
 | C3 | T13's value leaves Title out; T12, T13 and T15 count the start log's lines: one line of the defaults, one warning per unusable value (§9.2) | agreed | 04 |
 | C4 | T13 also checks a profile that pressed `Default columns`: it gets the variables' defaults (§9.2) | agreed | 04 |
 | C5 | T14 checks the first profile's choices before the way back, so that T16 means something; T6 reads a hidden column's field once the column is shown again (§9.2) | agreed | 04 |
-| Z11 | The column list is a Bootstrap dropdown menu, through Buttons' `dom` option, with a check by each column shown, through a `style` block in `overview.html` (§4.1) | proposed | 04 |
+| Z11 | The column list is a Bootstrap dropdown menu, through Buttons' `dom` option, with a check by each column shown, through a `style` block in `overview.html` (§4.1) | agreed | 05 |
+| C6 | T13's value lists the columns out of the table's order, so that a check holds §6.1's "in any order" (§9.2) | agreed | 05 |
 
 ## 3. What IRIS 2.4.29 does
 
@@ -300,7 +301,7 @@ finds the two references without one, and that is its control.
   | T10 | new | With the editor expanded, hiding it leaves the rendered view shown, across the width |
   | T11 | same | With the editor shown, typing saves the note; a second session on the note, with its editor hidden, renders the first session's change; the note's history lists the revision |
   | T12 | new | With no variable set, the app's start log has one line of the defaults, those of 2.4.29, and no warning (C3) |
-  | T13 | new | With `IW2X_OVERVIEW_COLUMNS=case_id,severity,owner`, Title left out, and `IW2X_NOTE_EDITOR=hidden`: a profile without a choice and the profile that pressed `Default columns` get them, the profile with a choice keeps it, and the start log has one line, naming them, and no warning (C3, C4) |
+  | T13 | new | With `IW2X_OVERVIEW_COLUMNS=owner,severity,case_id`, Title left out and the columns out of the table's order, and `IW2X_NOTE_EDITOR=hidden`: a profile without a choice and the profile that pressed `Default columns` get them, the profile with a choice keeps it, and the start log has one line, naming them, and no warning (C3, C4) |
   | T14 | new | The first profile chooses Outcome shown and the editor hidden, and both hold after a reload: the choices T16 needs (C5) |
   | T15 | new | With `IW2X_OVERVIEW_COLUMNS=title,bogus` and `IW2X_NOTE_EDITOR=maybe`, both pages show the defaults of 2.4.29, and the start log has exactly the two warnings and one line of the defaults (C3) |
   | T16 | same | After the way back to `--old`, in the first profile: no control, the columns and the editor of 2.4.29, the variables of T13 without effect |
