@@ -266,7 +266,7 @@ finds the two references without one, and that is its control.
   `--browser` names, with persistent profiles in a temporary directory. The run's
   certificate is accepted by its key (`--ignore-certificate-errors-spki-list`), so the
   browser caches as for a trusted site; Chrome caches nothing loaded past an ignored
-  certificate error. Driven by Playwright for Python, which
+  certificate error. Driven by Playwright for Python, 1.65.2 with greenlet 3.5.6, which
   `scripts/check-ui-requirements.txt` pins with hashes; CI installs it into a virtual
   environment on the runner, and a local run takes it with `uv run --with-requirements`.
 - **Checks.** Each prints `ok` or `FAIL`, tagged `[new]`, which holds only with the change,
@@ -275,12 +275,12 @@ finds the two references without one, and that is its control.
   | # | | Check |
   |---|---|---|
   | T1 | same | With no variable and no choice, the Overview shows the columns of 2.4.29 and a note opens with its editor |
-  | T2 | same | A second load of the Overview and of the notes page takes their scripts from the browser's cache |
+  | T2 | same | A second load of the Overview and of the notes page takes their scripts from the browser's cache: nginx logs the pages and not the scripts |
   | T3 | new | The Overview's control lists the eleven columns but Title, each marked as shown or hidden |
   | T4 | new | Outcome shown and Owner hidden through the control stay so after a reload, in a new tab, and after signing out and in |
   | T5 | new | `Default columns` brings back the defaults, and a reload keeps them |
   | T6 | new | A column shown later has its filter field, which filters its own column, and its clear button clears that field alone; hiding a column whose field filters empties the field and brings back the rows it hid |
-  | T7 | same | The default columns' filter fields filter and clear their own columns; sorting, paging, SearchBuilder's `Add filter`, the switch to all cases and the quick view work; a narrow window's details row lists every column; there is no Export, no Copy and no row selection |
+  | T7 | same | The default columns' filter fields filter and clear their own columns; sorting, paging, SearchBuilder's `Add filter`, the switch to all cases and the quick view work; a window narrowed after the page loads gives a details row that lists every column (a page loaded into a narrow window scrolls its table instead, in 2.4.29 as well); there is no Export, no Copy and no row selection |
   | T8 | new | The editor hidden on one note stays hidden on another note, after a reload, and after signing out and in; shown again, likewise |
   | T9 | new | With the editor hidden by choice, a created note opens with its editor, and the next note opened takes the choice again |
   | T10 | new | With the editor expanded, hiding it leaves the rendered view shown, across the width |
@@ -294,7 +294,8 @@ finds the two references without one, and that is its control.
   Then the image under test, with no variable: in that same profile, which keeps its cache
   and its storage, T1 and T3–T11 run, so they also show §7's swap, and T12 reads the log.
   Then with the variables of T13, then with those of T14, each with a profile of its own
-  beside the first; then `--old` again for T15, with the variables of T13 still set. nginx
+  beside the first; then `--old` again for T15, with the variables of T13 still set, once the
+  first profile has chosen what 2.4.29 shows nothing of: Outcome shown, the editor hidden. nginx
   restarts after each change of the app, since it resolves the app's name once.
 - **Result.** On the image under test every check passes. With `--control` the image is
   both the image under test and `--old`, and the run passes when every `[new]` check fails
