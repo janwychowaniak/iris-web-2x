@@ -27,22 +27,22 @@ keys and values but for the version, the revision and the creation time;
 
 IDs: `O` the owner's decisions in the order; `Z` the maintainer's assumptions, held unless
 vetoed; `W` decisions for the owner; `P` gaps in the order, for the consumer. Round 01 is
-the order with `reply-01`.
+the order with `reply-01`, round 02 `query-02` with `reply-02`.
 
 | ID | Decision | Status | Round |
 |---|---|---|---|
 | O1–O5 | As in the order's §3: A, B and C and nothing else; the order's §4–§7 are the requirements, the mechanism the maintainer's; with no variable set, a user who has made no choice sees what 2.4.29 shows; version `2.4.29-3`, tag `v2.4.29-3`, the README's release procedure; nothing public without the owner's word, implementation only after the owner's go on this file | agreed | 01 |
-| Z1 | The choices are kept per browser, in the `localStorage` of the IRIS site, as IRIS keeps its own (§4.2) | proposed | 01 |
-| Z2 | The Overview's control is IRIS's column visibility button of its case tables, with a last entry, `Default columns`; Export, Copy and row selection stay absent (§4.1) | proposed | 01 |
-| Z3 | Each column gets its filter field from IRIS's own `tableFiltering` while every column is visible, before the defaults or the choice apply; hiding a column clears its field and its search; `datatablesUtils.js` stays stock (§4.3) | proposed | 01 |
-| Z4 | The round button's toggle is the editor's choice; an opened note takes it, a created note opens with its editor; hiding the editor ends its expansion (§5) | proposed | 01 |
-| Z5 | The variables `IW2X_OVERVIEW_COLUMNS` and `IW2X_NOTE_EDITOR`, read from the environment in `app/configuration.py`; their values, an unusable value and the start log's lines as in §6, the lines in the app's log only | proposed | 01 |
-| Z6 | The patched templates name the patched scripts with `?v=2.4.29-3`; a check proves that no template in the image names either script without a `v` (§7, §9.1) | proposed | 01 |
-| Z7 | Five files of IRIS are patched, none is added (§8) | proposed | 01 |
-| Z8 | The browser test of §9.2, in CI and in the release, with its control on `2.4.29-2` in CI | proposed | 01 |
-| Z9 | The README, the notice, the Dockerfile's comment and `CHANGELOG.md` as in §10; the tag message lists every change of the image (§12) | proposed | 01 |
-| Z10 | Steps as in §11: the browser test and its control first, then the change | proposed | 01 |
-| W1 | The browser test's tool: Playwright for Python, pinned with hashes, outside the image (§9.2) | open | 01 |
+| Z1 | The choices are kept per browser, in the `localStorage` of the IRIS site, as IRIS keeps its own (§4.2) | agreed | 02 |
+| Z2 | The Overview's control is IRIS's column visibility button of its case tables, with a last entry, `Default columns`; Export, Copy and row selection stay absent (§4.1) | agreed | 02 |
+| Z3 | Each column gets its filter field from IRIS's own `tableFiltering` while every column is visible, before the defaults or the choice apply; hiding a column clears its field and its search; `datatablesUtils.js` stays stock (§4.3) | agreed | 02 |
+| Z4 | The round button's toggle is the editor's choice; an opened note takes it, a created note opens with its editor; hiding the editor ends its expansion (§5) | agreed | 02 |
+| Z5 | The variables `IW2X_OVERVIEW_COLUMNS` and `IW2X_NOTE_EDITOR`, read from the environment in `app/configuration.py`; their values, an unusable value and the start log's lines as in §6, the lines in the app's log only | agreed | 02 |
+| Z6 | The patched templates name the patched scripts with `?v=2.4.29-3`; a check proves that no template in the image names either script without a `v` (§7, §9.1) | agreed | 02 |
+| Z7 | Five files of IRIS are patched, none is added (§8) | agreed | 02 |
+| Z8 | The browser test of §9.2, in CI and in the release, with its control on `2.4.29-2` in CI | agreed | 02 |
+| Z9 | The README, the notice, the Dockerfile's comment and `CHANGELOG.md` as in §10; the tag message lists every change of the image (§12) | agreed | 02 |
+| Z10 | Steps as in §11: the browser test and its control first, then the change | agreed | 02 |
+| W1 | The browser test's tool: Playwright for Python, pinned with hashes, outside the image (§9.2) | agreed (owner) | 02 |
 
 ## 3. What IRIS 2.4.29 does
 
