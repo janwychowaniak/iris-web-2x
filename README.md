@@ -82,10 +82,10 @@ is never scheduled at start. The image leaves it as it is.
 
 ## The Overview's columns and the notes editor
 
-**The Overview.** A button with the column visibility icon, titled `Toggle columns`, beside
-`Add filter`, lists the table's columns but Title, which carries the case's link and its quick
-view and stays shown. Each entry shows or hides its column; the last one, `Default columns`,
-brings back the defaults and forgets the choice. A column shown later comes with its filter
+**The Overview.** A button with the column visibility icon, titled `Toggle columns`, under
+`Add filter`, opens a menu of the table's columns but Title, which carries the case's link and
+its quick view and stays shown. A check marks each column shown, and each entry shows or hides
+its column; the last one, `Default columns`, brings back the defaults and forgets the choice. A column shown later comes with its filter
 field; hiding a column empties its field and clears its filter, while SearchBuilder's criteria
 stay as they are. Export, Copy and row selection stay absent, as in 2.4.29.
 

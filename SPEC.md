@@ -50,6 +50,7 @@ the order with `reply-01`, round 02 `query-02` with `reply-02`, round 03 `query-
 | C3 | T13's value leaves Title out; T12, T13 and T15 count the start log's lines: one line of the defaults, one warning per unusable value (§9.2) | agreed | 04 |
 | C4 | T13 also checks a profile that pressed `Default columns`: it gets the variables' defaults (§9.2) | agreed | 04 |
 | C5 | T14 checks the first profile's choices before the way back, so that T16 means something; T6 reads a hidden column's field once the column is shown again (§9.2) | agreed | 04 |
+| Z11 | The column list is a Bootstrap dropdown menu, through Buttons' `dom` option, with a check by each column shown, through a `style` block in `overview.html` (§4.1) | proposed | 04 |
 
 ## 3. What IRIS 2.4.29 does
 
@@ -104,10 +105,17 @@ shape the design.
   `select: true` keeps having no effect. `overview.js` drops its `buttons` option (Export,
   Copy), which would otherwise throw (§3), so Export, Copy and row selection stay absent.
 - A button with IRIS's column visibility icon (`fa-eye-slash`) and the title
-  `Toggle columns`, as on the case tables, sits beside `Add filter`. It opens a list of the
-  eleven columns but Title, in the table's order, each marked while visible and toggling its
-  column; the last entry, `Default columns`, applies the defaults of §6 and forgets the
-  choice.
+  `Toggle columns`, as on the case tables, sits under `Add filter`. It opens a dropdown menu
+  of the eleven columns but Title, in the table's order, each checked (✓) while visible and
+  toggling its column; the last entry, `Default columns`, applies the defaults of §6 and
+  forgets the choice.
+- The menu's look (Z11). IRIS ships Buttons' Bootstrap 4 stylesheet as
+  `dataTables.buttons.min.css` but loads Buttons' core script, whose markup that stylesheet
+  does not style: on the case tables the list opens as a row of bare buttons over the table.
+  The Overview's Buttons instance asks for the Bootstrap 4 markup (`dom` option), so its
+  list is a Bootstrap dropdown menu. `dataTables.contextualActions.min.css`, which the
+  Overview loads, takes Bootstrap's mark of an active item away, so the template adds the
+  check in a `style` block of its own.
 - Title, the column of the case's link and its quick view, is in no list and stays visible.
 
 ### 4.2 The choice (Z1)
@@ -282,7 +290,7 @@ finds the two references without one, and that is its control.
   |---|---|---|
   | T1 | same | With no variable and no choice, the Overview shows the columns of 2.4.29 and a note opens with its editor |
   | T2 | same | nginx logs both scripts on the first loads of the Overview and the notes page; after the browser restarts on the same profile, the second loads ask nginx for the pages and for neither script (C2) |
-  | T3 | new | The Overview's control lists the eleven columns but Title, each marked as shown or hidden |
+  | T3 | new | The Overview's control lists the eleven columns but Title, a check visible by each column shown and by no other |
   | T4 | new | Outcome shown and Owner hidden through the control stay so after a reload, in a new tab, and after signing out and in |
   | T5 | new | `Default columns` brings back the defaults, and a reload keeps them; a second profile makes a choice and presses `Default columns`, which T13 tells apart from keeping a choice (C4) |
   | T6 | new | A column shown later has its filter field, which filters its own column, and its clear button clears that field alone; hiding a column whose field filters brings back the rows it hid, and shown again the column's field is empty (C5) |

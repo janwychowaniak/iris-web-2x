@@ -1,6 +1,23 @@
 --- a/app/blueprints/overview/templates/overview.html
 +++ b/app/blueprints/overview/templates/overview.html
-@@ -49,7 +49,7 @@
+@@ -10,6 +10,16 @@
+     <link href="/static/assets/css/dataTables.select.min.css" rel="stylesheet">
+     <link href="/static/assets/css/dataTables.responsive.css" rel="stylesheet">
+     <link href="/static/assets/css/dataTables.searchBuilder.css" rel="stylesheet">
++    <style>
++        /* iris-web-2x: the column list checks the columns shown, a mark that
++           dataTables.contextualActions.min.css takes from Bootstrap's active items */
++        div.dt-button-collection .dropdown-item.buttons-columnVisibility::before {
++            content: "\2713"; display: inline-block; width: 1.4em; visibility: hidden;
++        }
++        div.dt-button-collection .dropdown-item.buttons-columnVisibility.active::before {
++            visibility: visible;
++        }
++    </style>
+ 
+ {% endblock stylesheets %}
+ 
+@@ -49,7 +59,7 @@
  
                                                                      <span id="table_buttons"></span>
                                  <table class="table display wrap col-border table-striped table-hover" width="100%"
@@ -9,7 +26,7 @@
                                      <thead>
                                          <tr>
                                              <th>Outcome</th>
-@@ -126,6 +126,8 @@
+@@ -126,6 +136,8 @@
      <script src="/static/assets/js/plugin/datatables/dataTables.searchBuilder.js"></script>
      <script src="/static/assets/js/plugin/datatables/dataTables.dateTime.min.js"></script>
      <script src="/static/assets/js/plugin/datatables/dataTables.searchBuilder.bs4.js"></script>

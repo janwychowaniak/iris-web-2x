@@ -82,7 +82,8 @@ CASES, FALSE_POSITIVE, CLOSED = 30, 5, 3  # created cases: open false positives,
 OVERVIEW, NOTES = "/overview?cid=1", "/case/notes?cid=1"
 SCRIPTS = ("/static/assets/js/iris/overview.js", "/static/assets/js/iris/case.notes.js")
 CONTROL = '[title="Toggle columns"]'
-COLLECTION = ".dt-button-collection"
+COLLECTION = ".dt-button-collection"  # it holds the list, but has no size of its own: the list
+ITEMS = COLLECTION + " .buttons-columnVisibility"  # is absolutely positioned, so it is seen by its items
 
 
 class Failed(Exception):
@@ -311,17 +312,17 @@ class Profile:
 
     def open_control(self):
         p = self.page
-        if not p.locator(COLLECTION).is_visible():
+        if not p.locator(ITEMS).first.is_visible():
             expect(self.has_control(), "the Overview has no control titled 'Toggle columns'")
             p.locator(CONTROL).first.click()
-            p.locator(COLLECTION).wait_for(state="visible")
-        return p.locator(COLLECTION + " .buttons-columnVisibility")
+            p.locator(ITEMS).first.wait_for(state="visible", timeout=5000)
+        return p.locator(ITEMS)
 
     def close_control(self):
         p = self.page
-        if p.locator(COLLECTION).is_visible():
+        if p.locator(ITEMS).first.is_visible():
             p.keyboard.press("Escape")  # Buttons closes the list, fading it out
-            p.locator(COLLECTION).wait_for(state="hidden", timeout=5000)
+            p.locator(ITEMS).first.wait_for(state="hidden", timeout=5000)
 
     def toggle(self, title):
         before = self.shown()
@@ -471,11 +472,13 @@ class Run:
         a.overview()
         items = a.open_control()
         texts = [t.strip() for t in items.all_inner_texts()]
-        active = [("active" in (c or "")) for c in items.evaluate_all("els => els.map(e => e.className)")]
+        marked = items.evaluate_all(  # what the user sees, not only a class
+            "els => els.map(e => { const b = getComputedStyle(e, '::before');"
+            " return b.visibility === 'visible' && !['none', 'normal', '\"\"'].includes(b.content); })")
         a.close_control()
         expect(texts == TOGGLED, "the control lists %s" % texts)
         want = [t in a.shown() for t in TOGGLED]
-        expect(active == want, "the control marks %s as shown" % [t for t, x in zip(texts, active) if x])
+        expect(marked == want, "the control marks %s as shown" % [t for t, x in zip(texts, marked) if x])
 
     def t4(self):
         a = self.a
