@@ -27,7 +27,8 @@ keys and values but for the version, the revision and the creation time;
 
 IDs: `O` the owner's decisions in the order; `Z` the maintainer's assumptions, held unless
 vetoed; `W` decisions for the owner; `P` gaps in the order, for the consumer. Round 01 is
-the order with `reply-01`, round 02 `query-02` with `reply-02`.
+the order with `reply-01`, round 02 `query-02` with `reply-02`, round 03 `query-03` with
+`reply-03`.
 
 | ID | Decision | Status | Round |
 |---|---|---|---|
@@ -43,6 +44,7 @@ the order with `reply-01`, round 02 `query-02` with `reply-02`.
 | Z9 | The README, the notice, the Dockerfile's comment and `CHANGELOG.md` as in §10; the tag message lists every change of the image (§12) | agreed | 02 |
 | Z10 | Steps as in §11: the browser test and its control first, then the change | agreed | 02 |
 | W1 | The browser test's tool: Playwright for Python, pinned with hashes, outside the image (§9.2) | agreed (owner) | 02 |
+| O5 | The owner's go on this file for the implementation | given (owner) | 03 |
 
 ## 3. What IRIS 2.4.29 does
 
